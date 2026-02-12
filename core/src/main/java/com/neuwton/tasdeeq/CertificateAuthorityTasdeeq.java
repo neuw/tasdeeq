@@ -14,7 +14,6 @@ import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class CertificateAuthorityTasdeeq {
 
@@ -50,30 +49,30 @@ public class CertificateAuthorityTasdeeq {
 
                 for (X509Certificate x509 : xtm.getAcceptedIssuers()) {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("Certificate: ");
-                    sb.append(x509.getSubjectDN());
-                    sb.append(" Serial Number: ");
+                    sb.append("Certificate: [");
+                    sb.append(x509.getIssuerX500Principal().getName());
+                    sb.append("] Serial Number: [");
                     sb.append(x509.getSerialNumber());
-                    sb.append(" Issuer: ");
+                    sb.append("] Issuer: [");
                     sb.append(x509.getIssuerDN());
-                    sb.append(" Valid from: ");
+                    sb.append("] Valid from: [");
                     sb.append(x509.getNotBefore());
-                    sb.append(" Valid until: ");
+                    sb.append("] Valid until: [");
                     sb.append(x509.getNotAfter());
-                    sb.append(" Signature Algorithm: ");
+                    sb.append("] Signature Algorithm: [");
                     sb.append(x509.getSigAlgName());
                     if (x509.getExtensionValue("2.5.29.19") != null) {
-                        sb.append(" Basic Constraints: ");
+                        sb.append("] Basic Constraints: ");
                         sb.append(x509.getBasicConstraints());
                         if (isSelfSigned(x509) && x509.getBasicConstraints() != -1) {
                             rootCAsBySerialNumber.put(x509.getSerialNumber().toString(), x509);
                             rootCAsBySubjectDN.put(x509.getSubjectX500Principal().getName(), x509);
-                            sb.append(" Certificate Type: ROOT CA");
+                            sb.append("] Certificate Type: ROOT CA");
                         } else {
-                            sb.append(" Certificate Type: INTERMEDIATE CA");
+                            sb.append("[ Certificate Type: INTERMEDIATE CA");
                         }
                     } else {
-                        sb.append(" Certificate Type: LEAF");
+                        sb.append("] Certificate Type: LEAF");
                     }
                     logger.info(sb.toString());
                 }
@@ -81,7 +80,7 @@ public class CertificateAuthorityTasdeeq {
         }
     }
 
-    public static boolean rootCAisTrusted(X509Certificate cert) {
+    private static boolean rootCABySerialNumberExists(X509Certificate cert) {
         return rootCAsBySerialNumber.containsKey(cert.getSerialNumber().toString());
     }
 
@@ -92,10 +91,12 @@ public class CertificateAuthorityTasdeeq {
             return false;
         }
 
+        // TODO - self signed leaf certs? not yet implemented, do we need them?
+
         // First: check if any cert in the chain IS a trusted root
         for (X509Certificate cert : chain) {
             if (isSelfSigned(cert) && cert.getBasicConstraints() != -1) {
-                if (rootCAsBySerialNumber.containsKey(cert.getSerialNumber().toString())) {
+                if (rootCABySerialNumberExists(cert)) {
                     logger.info("Root CA [{}] found in chain and exists in truststore",
                             cert.getSubjectX500Principal().getName());
                     return true;
@@ -143,18 +144,6 @@ public class CertificateAuthorityTasdeeq {
                     e.getMessage());
             return false;
         }
-    }
-
-    // get cert from the chain based on the subject DN
-    public static Optional<X509Certificate> getCertBySubjectDN(List<X509Certificate> chain, String subjectDN) {
-        return chain.stream().filter(cert -> {
-            return cert.getSubjectX500Principal().getName().equals(subjectDN);
-        }).findFirst();
-    }
-
-    public static boolean isRootCAPresent(List<X509Certificate> chain) {
-        // only roots are self-signed
-        return chain.stream().anyMatch(cert -> isSelfSigned(cert) && cert.getBasicConstraints() != -1);
     }
 
     private static boolean isSelfSigned(X509Certificate cert) {

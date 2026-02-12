@@ -20,7 +20,6 @@ public class JDKTasdeeq {
     public static int getClassVersion(Class<?> clazz) throws IOException {
         String className = clazz.getName().replace('.', '/') + ".class";
 
-        System.out.println(className);
         try (InputStream is = clazz.getClassLoader().getResourceAsStream(className)) {
             ClassReader reader = new ClassReader(is);
 
