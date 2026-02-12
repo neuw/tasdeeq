@@ -58,7 +58,7 @@ public class JDKTasdeeq {
             case 54: return "10";
             case 53: return "9";
             case 52: return "8";
-            default: return "Unknown";
+            default: return "UNKNOWN";
         }
     }
 
