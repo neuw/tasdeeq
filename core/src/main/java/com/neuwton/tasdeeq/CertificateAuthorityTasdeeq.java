@@ -39,7 +39,7 @@ public class CertificateAuthorityTasdeeq {
         }
     }
 
-    public static void populateRootCAs() throws NoSuchAlgorithmException, KeyStoreException {
+    private static void populateRootCAs() throws NoSuchAlgorithmException, KeyStoreException {
         // Get the default truststore using TrustManagerFactory
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         tmf.init((KeyStore) null); // Pass null to use the default truststore

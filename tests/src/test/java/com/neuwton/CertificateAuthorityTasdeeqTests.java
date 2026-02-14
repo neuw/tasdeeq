@@ -17,14 +17,19 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CertificateAuthorityTasdeeqTests {
 
     @Test
-    public void testPopulateRootCAs() throws NoSuchAlgorithmException, KeyStoreException {
-        CertificateAuthorityTasdeeq.populateRootCAs();
-    }
-
-    @Test
     public void testRootCAs() {
         // any JDK would have it.
         assertFalse(CertificateAuthorityTasdeeq.getRootCAsBySerialNumber().isEmpty());
+    }
+
+    @Test
+    public void testRootsBySerialNumbers() {
+        assertFalse(CertificateAuthorityTasdeeq.getRootCAsBySerialNumber().isEmpty());
+    }
+
+    @Test
+    public void testRootsBySubjectDNs() {
+        assertFalse(CertificateAuthorityTasdeeq.getRootCAsBySubjectDN().isEmpty());
     }
 
     @ParameterizedTest

@@ -47,28 +47,10 @@ public class JVMTasdeeq {
     }
 
     public static String getJdkVersion(int majorVersion) {
-        switch (majorVersion) {
-            case 70: return "26";
-            case 69: return "25";
-            case 68: return "24";
-            case 67: return "23";
-            case 66: return "22";
-            case 65: return "21";
-            case 64: return "20";
-            case 63: return "19";
-            case 62: return "18";
-            case 61: return "17";
-            case 60: return "16";
-            case 59: return "15";
-            case 58: return "14";
-            case 57: return "13";
-            case 56: return "12";
-            case 55: return "11";
-            case 54: return "10";
-            case 53: return "9";
-            case 52: return "8";
-            default: return "UNKNOWN";
+        if (majorVersion >= 52 && majorVersion <= 70) {
+            return String.valueOf(majorVersion - 44);
         }
+        return "UNKNOWN";
     }
 
     public static class JVMTasdeeqResult {
