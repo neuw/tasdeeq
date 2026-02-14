@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
-import javax.security.auth.x500.X500Principal;
 import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PublicKey;
@@ -15,7 +14,6 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class DownstreamCertTasdeeq {
 
@@ -271,7 +269,7 @@ public class DownstreamCertTasdeeq {
         TrustManagerFactory defaultTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         defaultTmf.init((KeyStore) null);
 
-        KeyStore customTrustStore = KeyStore.getInstance("PKCS12", "SunJSSE");
+        KeyStore customTrustStore = KeyStore.getInstance("PKCS12");
         customTrustStore.load(null, null);
         for (int i = 0; i < additionalCAs.length; i++) {
             customTrustStore.setCertificateEntry("custom-root-" + i, additionalCAs[i]);

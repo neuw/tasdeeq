@@ -10,35 +10,35 @@ public class DNSTasdeeqTests {
 
     @Test
     public void testDNSQuery() {
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("google.com");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq("google.com");
         assertNotNull(result);
         assertNotNull(result.getRecords("A"));
     }
 
     @Test
     public void testTXTRecords() {
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("somewrong-domain-very-wrong-sub-domain.google.com", "TXT");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq("somewrong-domain-very-wrong-sub-domain.google.com", "TXT");
         assertNotNull(result);
         assertEquals(0, result.getRecords("TXT").size());
     }
 
     @Test
     public void testUNKNOWNRecords() {
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("google.com", "UNKNOWN");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq("google.com", "UNKNOWN");
         assertNotNull(result);
         assertEquals(0, result.getRecords("UNKNOWN").size());
     }
 
     @Test
     public void testARecordOnly() {
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("google.com", "A");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq("google.com", "A");
         assertNotNull(result);
         assertNotNull(result.getRecords("A"));
     }
 
     @Test
     public void testAAndNSRecordOnly() {
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("google.com", "A", "NS");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq("google.com", "A", "NS");
         assertNotNull(result);
         assertNotNull(result.getRecords("A"));
         assertNotNull(result.getRecords("NS"));
@@ -47,7 +47,7 @@ public class DNSTasdeeqTests {
     @Test
     public void testDNSQueryWrongWebsite() {
         String domain = "google-not-good"; // random domain
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS(domain);
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq(domain);
         assertNotNull(result);
         assertEquals("Domain not found: "+result.getDomain(), result.getConnectionError());
     }
@@ -55,7 +55,7 @@ public class DNSTasdeeqTests {
     @Test
     public void testAAndNSRecordOnlyWrongWebsite() {
         String domain = "google-not-good"; // random domain
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS(domain, "A", "NS");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.tasdeeq(domain, "A", "NS");
         assertNotNull(result);
         assertEquals("Domain not found: "+domain, result.getConnectionError());
     }

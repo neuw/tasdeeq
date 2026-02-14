@@ -17,7 +17,7 @@ public class DNSTasdeeq {
     private static final String DNS_FACTORY = "com.sun.jndi.dns.DnsContextFactory";
     private static final String DNS_URL = "dns://";
 
-    public static DNSQueryResult queryDNS(String domain, String... recordTypes) {
+    public static DNSQueryResult tasdeeq(String domain, String... recordTypes) {
         DNSQueryResult result = new DNSQueryResult(domain);
 
         Hashtable<String, String> env = new Hashtable<>();
