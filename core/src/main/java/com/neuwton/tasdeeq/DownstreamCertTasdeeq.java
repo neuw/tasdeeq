@@ -5,12 +5,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
+import javax.security.auth.x500.X500Principal;
+import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class DownstreamCertTasdeeq {
 
@@ -67,9 +72,34 @@ public class DownstreamCertTasdeeq {
         }
     }
 
-    /**
-     * Fetches certificate WITH validation enabled (secure).
-     */
+    private static List<X509Certificate> fetchCertificateWithCustomSSLSockerFactory(String hostname, int port) throws Exception {
+        logger.info("Fetching certificate with validation enabled");
+
+        // Get factory from current default SSLContext — picks up addTrustedRoots changes
+        SSLSocketFactory factory = SSLContext.getDefault().getSocketFactory();
+
+        try (SSLSocket socket = (SSLSocket) factory.createSocket(hostname, port)) {
+            socket.startHandshake();
+            SSLSession session = socket.getSession();
+
+            Certificate[] certs = session.getPeerCertificates();
+            List<X509Certificate> x509Certs = new ArrayList<>();
+
+            logger.info("Retrieved {} certificate(s) in chain", certs.length);
+
+            for (Certificate cert : certs) {
+                if (cert instanceof X509Certificate) {
+                    X509Certificate x509 = (X509Certificate) cert;
+                    x509Certs.add(x509);
+                    String certType = classifyCertificate(x509);
+                    logCertificateDetails(x509, certType);
+                }
+            }
+
+            return orderChain(x509Certs);
+        }
+    }
+
     private static List<X509Certificate> fetchCertificateWithValidation(String hostname, int port) throws Exception {
         logger.info("Fetching certificate with validation enabled");
         SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
@@ -94,6 +124,37 @@ public class DownstreamCertTasdeeq {
 
             // well it will be ordered 99.999999% of the times :-), just being extra sure.
             return orderChain(x509Certs);
+        }
+    }
+
+    /**
+     * Fetches with custom truststore.
+     */
+    public static List<X509Certificate> getDownstreamCertWithCustomTruststore(
+            String hostname, int port, X509Certificate... additionalCAs) throws Exception {
+
+        logger.info("Fetching certificate with custom truststore");
+
+        // Store original settings
+        SSLSocketFactory originalSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
+        HostnameVerifier originalHostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
+        SSLContext originalSSLContext = SSLContext.getDefault();
+
+        addTrustedRoots(additionalCAs);
+
+        try {
+            List<X509Certificate> certs = fetchCertificateWithCustomSSLSockerFactory(hostname, port);
+            logger.info("Certificates fetched successfully");
+            return certs;
+        } catch (Exception e) {
+            logger.error("Failed to fetch certificates!", e);
+            throw e;
+        } finally {
+            // Always restore — whether success or failure
+            SSLContext.setDefault(originalSSLContext);
+            HttpsURLConnection.setDefaultSSLSocketFactory(originalSocketFactory);
+            HttpsURLConnection.setDefaultHostnameVerifier(originalHostnameVerifier);
+            logger.info("SSL context restored to original");
         }
     }
 
@@ -145,65 +206,11 @@ public class DownstreamCertTasdeeq {
         }
     }
 
-    /**
-     * Fetches a full certificate chain and prints detailed information.
-     */
-    public static List<X509Certificate> fetchCertificateChain(String hostname, int port, boolean validateChain) {
-        logger.debug("Fetching certificate chain for {}:{}", hostname, port);
-
-        SSLSocketFactory originalSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
-        HostnameVerifier originalHostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
-
-        try {
-            if (!validateChain) {
-                disableCertificateValidation();
-            }
-
-            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-            try (SSLSocket socket = (SSLSocket) factory.createSocket(hostname, port)) {
-                socket.startHandshake();
-                SSLSession session = socket.getSession();
-
-                Certificate[] certs = session.getPeerCertificates();
-                List<X509Certificate> x509Certs = new ArrayList<>();
-
-                logger.info("Retrieved {} certificate(s) in chain", certs.length);
-
-                for (Certificate cert : certs) {
-                    if (cert instanceof X509Certificate) {
-                        X509Certificate x509 = (X509Certificate) cert;
-                        x509Certs.add(x509);
-                        logCertificateDetails(x509, classifyCertificate(x509));
-                    }
-                }
-
-                return orderChain(x509Certs);
-            }
-        } catch (Exception e) {
-            logger.error("Failed to fetch certificate chain", e);
-            throw new CertificateValidationException(
-                    "Failed to fetch certificate chain for " + hostname + ":" + port, e);
-        } finally {
-            if (!validateChain) {
-                try {
-                    enableCertificateValidation(originalSocketFactory, originalHostnameVerifier);
-                } catch (Exception e) {
-                    logger.error("Failed to re-enable certificate validation!", e);
-                }
-            }
-        }
-    }
-
     private static void logCertificateDetails(X509Certificate x509, String certType) {
-        try {
-            logger.info("certificate details: Subject: [{}], Issuer: [{}], Validity: [{}] to [{}], Serial: [{}], type: [{}], EKU: {}", x509.getSubjectDN(), x509.getIssuerDN(), x509.getNotBefore(), x509.getNotAfter(), x509.getSerialNumber(), certType, getExtendedKeyUsage(x509));
-        } catch (Exception e) {
-            logger.error("Error logging certificate details", e);
-        }
+        logger.info("certificate details: Subject: [{}], Issuer: [{}], Validity: [{}] to [{}], Serial: [{}], type: [{}], EKU: {}", x509.getSubjectDN(), x509.getIssuerDN(), x509.getNotBefore(), x509.getNotAfter(), x509.getSerialNumber(), certType, getExtendedKeyUsage(x509));
     }
 
     private static List<X509Certificate> orderChain(List<X509Certificate> certs) {
-        // Build a map: subject -> certificate
         Map<Principal, X509Certificate> bySubject = new HashMap<>();
         Set<Principal> issuers = new HashSet<>();
 
@@ -212,42 +219,31 @@ public class DownstreamCertTasdeeq {
             issuers.add(cert.getIssuerX500Principal());
         }
 
-        // Find the leaf: a cert whose subject is NOT an issuer of any other cert
+        // Single cert case — self-signed, treat it as the leaf
+        if (certs.size() == 1) {
+            return new ArrayList<>(certs);
+        }
+
         X509Certificate leaf = certs.stream()
-                .filter(c -> !issuers.contains(c.getSubjectX500Principal())
-                        || c.getSubjectX500Principal().equals(c.getIssuerX500Principal()))
                 .filter(c -> !c.getSubjectX500Principal().equals(c.getIssuerX500Principal()))
+                .filter(c -> !issuers.contains(c.getSubjectX500Principal()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Cannot find leaf certificate"));
 
-        // Walk up the chain
         List<X509Certificate> ordered = new ArrayList<>();
         X509Certificate current = leaf;
         Set<Principal> visited = new HashSet<>();
 
         while (current != null && visited.add(current.getSubjectX500Principal())) {
             ordered.add(current);
-            X509Certificate issuer = bySubject.get(current.getIssuerX500Principal());
-            if (issuer == current) break; // self-signed root
-            current = issuer;
+            // Stop if self-signed root — compare principals, not references
+            if (current.getSubjectX500Principal().equals(current.getIssuerX500Principal())) {
+                break;
+            }
+            current = bySubject.get(current.getIssuerX500Principal());
         }
 
         return ordered;
-    }
-
-    /**
-     * Converts X509Certificate to PEM format.
-     */
-    public static String toPEM(X509Certificate cert) {
-        try {
-            byte[] encoded = cert.getEncoded();
-            return "-----BEGIN CERTIFICATE-----\n" +
-                    Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(encoded) +
-                    "\n-----END CERTIFICATE-----";
-        } catch (Exception e) {
-            logger.error("Failed to convert certificate to PEM", e);
-            throw new RuntimeException("Failed to convert certificate to PEM", e);
-        }
     }
 
     private static void disableCertificateValidation() throws Exception {
@@ -268,6 +264,75 @@ public class DownstreamCertTasdeeq {
 
         HostnameVerifier allHostsValid = (hostname, session) -> true;
         HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
+    }
+
+    private static void addTrustedRoots(X509Certificate... additionalCAs) throws Exception {
+        // Load the default system truststore (JDK cacerts)
+        TrustManagerFactory defaultTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        defaultTmf.init((KeyStore) null);
+
+        KeyStore customTrustStore = KeyStore.getInstance("PKCS12", "SunJSSE");
+        customTrustStore.load(null, null);
+        for (int i = 0; i < additionalCAs.length; i++) {
+            customTrustStore.setCertificateEntry("custom-root-" + i, additionalCAs[i]);
+        }
+
+        X509Certificate x509Certificate = (X509Certificate)customTrustStore.getCertificate("custom-root-"+0);
+        x509Certificate.checkValidity();
+        System.out.println("x509Certificate.getIssuerX500Principal().getName() --> " +x509Certificate.getIssuerX500Principal().getName());
+        X509Certificate x509Certificate1 = (X509Certificate)customTrustStore.getCertificate("custom-root-"+1);
+        x509Certificate1.checkValidity();
+        System.out.println("x509Certificate.getIssuerX500Principal().getName() --> " +x509Certificate1.getIssuerX500Principal().getName());
+
+        TrustManagerFactory customTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        customTmf.init(customTrustStore);
+
+        X509TrustManager defaultTm = (X509TrustManager) defaultTmf.getTrustManagers()[0];
+        X509TrustManager customTm  = (X509TrustManager) customTmf.getTrustManagers()[0];
+
+        X509TrustManager combinedTm = new X509TrustManager() {
+
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType)
+                    throws CertificateException {
+                try {
+                    defaultTm.checkClientTrusted(chain, authType);
+                } catch (CertificateException e) {
+                    customTm.checkClientTrusted(chain, authType);
+                }
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType)
+                    throws CertificateException {
+                try {
+                    defaultTm.checkServerTrusted(chain, authType);
+                } catch (CertificateException e) {
+                    customTm.checkServerTrusted(chain, authType);
+                }
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                X509Certificate[] defaultIssuers = defaultTm.getAcceptedIssuers();
+                X509Certificate[] customIssuers  = customTm.getAcceptedIssuers();
+                X509Certificate[] combined = new X509Certificate[
+                        defaultIssuers.length + customIssuers.length];
+                System.arraycopy(defaultIssuers, 0, combined, 0, defaultIssuers.length);
+                System.arraycopy(customIssuers, 0, combined, defaultIssuers.length, customIssuers.length);
+                return combined;
+            }
+        };
+
+        SSLContext sc = SSLContext.getInstance("TLS");
+        sc.init(null, new TrustManager[]{ combinedTm }, new SecureRandom());
+        SSLContext.setDefault(sc);
+        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        // Diagnostic — print what customTm sees
+        System.out.println("Custom TM accepted issuers count: " + customTm.getAcceptedIssuers().length);
+        for (X509Certificate issuer : customTm.getAcceptedIssuers()) {
+            System.out.println("  Custom trusted: " + issuer.getSubjectX500Principal().getName());
+        }
     }
 
     private static void enableCertificateValidation(
@@ -306,9 +371,16 @@ public class DownstreamCertTasdeeq {
         EKU_DESCRIPTIONS.put("1.3.6.1.5.5.7.3.8", "Time Stamping");
     }
 
-    private static String getExtendedKeyUsage(X509Certificate cert) throws CertificateParsingException {
+    private static String getExtendedKeyUsage(X509Certificate cert) {
         StringBuilder result = new StringBuilder("Extended Key Usage:");
-        List<String> ekuOIDs = cert.getExtendedKeyUsage();
+        List<String> ekuOIDs;
+        try {
+            ekuOIDs = cert.getExtendedKeyUsage();
+        } catch (CertificateParsingException e) {
+            // this would not occur in 99.99% scenarios, but just in case...
+            logger.error("Failed to parse certificate EKU", e);
+            throw new RuntimeException(e);
+        }
 
         if (ekuOIDs != null) {
             for (String oid : ekuOIDs) {
@@ -329,39 +401,6 @@ public class DownstreamCertTasdeeq {
         } catch (Exception e) {
             logger.trace("Certificate {} is not self-signed", cert.getSubjectX500Principal().getName());
             return false;
-        }
-    }
-
-    public static void main(String[] args) {
-        /*List<X509Certificate> certs = getDownstreamCert("private-tapi.telstra.com", 443, true);
-        if (CertificateAuthorityTasdeeq.rootCAisTrusted(certs)) {
-            logger.info("Root CA is trusted for private-tapi.telstra.com");
-        }
-        if (CertificateAuthorityTasdeeq.rootCAisTrusted(getDownstreamCert("ca-mini.in.01101011.in", 443, false))) {
-            logger.info("Root CA is trusted for ca-mini.in.01101011.in");
-        } else {
-            logger.warn("Root CA is NOT trusted for ca-mini.in.01101011.in");
-        }
-        */
-        if (CertificateAuthorityTasdeeq.rootCAisTrusted(getDownstreamCert("private-tapi.telstra.com", 443, true))) {
-            logger.info("Root CA is trusted for private-tapi.telstra.com");
-        } else {
-            logger.warn("Root CA is NOT trusted for private-tapi.telstra.com");
-        }
-        if (CertificateAuthorityTasdeeq.rootCAisTrusted(getDownstreamCert("speedtest.telstra.com", 443, true))) {
-            logger.info("Root CA is trusted for speedtest.telstra.com");
-        } else {
-            logger.warn("Root CA is NOT trusted for speedtest.telstra.com");
-        }
-        try {
-            List<X509Certificate> certs = getDownstreamCert("ca-mini.in.01101011.in", 443, false);
-            if (CertificateAuthorityTasdeeq.rootCAisTrusted(certs)) {
-                logger.info("Root CA is trusted for ca-mini.in.01101011.in");
-            } else {
-                logger.warn("Root CA is NOT trusted for ca-mini.in.01101011.in");
-            }
-        } catch (CertificateValidationException e) {
-            logger.warn("Failed to validate certificate for ca-mini.in.01101011.in: {}", e.getMessage());
         }
     }
 }

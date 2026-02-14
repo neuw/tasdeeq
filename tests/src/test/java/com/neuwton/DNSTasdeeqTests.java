@@ -17,7 +17,7 @@ public class DNSTasdeeqTests {
 
     @Test
     public void testTXTRecords() {
-        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("google.com", "TXT");
+        DNSTasdeeq.DNSQueryResult result = DNSTasdeeq.queryDNS("somewrong-domain-very-wrong-sub-domain.google.com", "TXT");
         assertNotNull(result);
         assertEquals(0, result.getRecords("TXT").size());
     }

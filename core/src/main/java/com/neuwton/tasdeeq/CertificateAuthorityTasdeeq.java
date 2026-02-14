@@ -32,6 +32,7 @@ public class CertificateAuthorityTasdeeq {
 
     static {
         try {
+            // populate the default truststore's root CAs
             populateRootCAs();
         } catch (NoSuchAlgorithmException | KeyStoreException e) {
             throw new RuntimeException(e);
@@ -91,9 +92,7 @@ public class CertificateAuthorityTasdeeq {
             return false;
         }
 
-        // TODO - self signed leaf certs? not yet implemented, do we need them?
-
-        // First: check if any cert in the chain IS a trusted root
+        // First: check if any cert in the chain is a trusted root
         for (X509Certificate cert : chain) {
             if (isSelfSigned(cert) && cert.getBasicConstraints() != -1) {
                 if (rootCABySerialNumberExists(cert)) {
@@ -104,10 +103,9 @@ public class CertificateAuthorityTasdeeq {
             }
         }
 
-        // Second: check if any CA cert's issuer is a trusted root
         for (X509Certificate cert : chain) {
-            if (cert.getExtensionValue("2.5.29.19") != null) {
-                // Intermediate CA — check if its issuer is a trusted root
+            if (cert.getBasicConstraints() != -1) {
+                // intermediate CA cert — check if its issuer is a trusted root
                 X509Certificate trustedRoot = rootCAsBySubjectDN.get(
                         cert.getIssuerX500Principal().getName());
                 if (trustedRoot != null && verifySignature(cert, trustedRoot)) {
@@ -117,7 +115,7 @@ public class CertificateAuthorityTasdeeq {
                     return true;
                 }
             } else {
-                // Leaf — check if directly signed by a trusted root (rare but valid)
+                // Leaf (end-entity) — check if directly signed by a trusted root
                 X509Certificate trustedRoot = rootCAsBySubjectDN.get(
                         cert.getIssuerX500Principal().getName());
                 if (trustedRoot != null && verifySignature(cert, trustedRoot)) {
@@ -125,6 +123,10 @@ public class CertificateAuthorityTasdeeq {
                             cert.getSubjectX500Principal().getName(),
                             trustedRoot.getSubjectX500Principal().getName());
                     return true;
+                } else if (isSelfSigned(cert)) {
+                    // Self-signed leaf — rare/unusual, warn
+                    logger.error("Self-signed leaf cert [{}] found — not tracing to any root CA",
+                            cert.getSubjectX500Principal().getName());
                 }
             }
         }
