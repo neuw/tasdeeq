@@ -1,6 +1,6 @@
 package com.neuwton;
 
-import com.neuwton.tasdeeq.JDKTasdeeq;
+import com.neuwton.tasdeeq.JVMTasdeeq;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -8,16 +8,23 @@ import org.slf4j.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JDKTasdeeqTests {
+public class JVMTasdeeqTests {
 
     @Test
     public void testJDKVersion() throws Exception {
-        JDKTasdeeq.tasdeeq();
+        JVMTasdeeq.JVMTasdeeqResult result = JVMTasdeeq.tasdeeq();
+        assertNotNull(result);
+        assertNotNull(result.getJdkVersion());
+        assertTrue(result.getClassVersion() >= 52);
+        assertNotNull(result.getVendor());
+        assertNotNull(result.getJreVersion());
+        assertNotNull(result.getRuntimeVersion());
     }
 
     @Test
     public void testJDKVersionOfClass() throws Exception {
-        assertEquals(52, JDKTasdeeq.getClassVersion(Logger.class));
+        // the SLF4J Logger class is developed in JDK8 as base.
+        assertEquals(52, JVMTasdeeq.getClassVersion(Logger.class));
     }
 
     @ParameterizedTest
@@ -43,12 +50,12 @@ public class JDKTasdeeqTests {
             "52"
     })
     public void testKnownJDKVersion(String majorVersion) {
-        assertNotEquals("UNKNOWN", JDKTasdeeq.getJdkVersion(Integer.parseInt(majorVersion)));
+        assertNotEquals("UNKNOWN", JVMTasdeeq.getJdkVersion(Integer.parseInt(majorVersion)));
     }
 
     @Test
     public void testUnKnownJDKVersion() {
-        assertEquals("UNKNOWN", JDKTasdeeq.getJdkVersion(1000));
+        assertEquals("UNKNOWN", JVMTasdeeq.getJdkVersion(1000));
     }
 
 }
