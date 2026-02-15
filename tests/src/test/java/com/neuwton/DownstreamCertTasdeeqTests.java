@@ -70,15 +70,9 @@ public class DownstreamCertTasdeeqTests {
 
     @Test
     public void testDownstreamCertsDefaultSSLValidation() {
+        // this also equivalent to the call DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443, true);
         assertThrows(CertificateValidationException.class, () -> {
             DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443);
-        });
-    }
-
-    @Test
-    public void testDownstreamCertsEnabledSSLValidation() {
-        assertThrows(CertificateValidationException.class, () -> {
-            DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443, true);
         });
     }
 

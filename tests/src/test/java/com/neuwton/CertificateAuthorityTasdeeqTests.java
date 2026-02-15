@@ -17,12 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CertificateAuthorityTasdeeqTests {
 
     @Test
-    public void testRootCAs() {
-        // any JDK would have it.
-        assertFalse(CertificateAuthorityTasdeeq.getRootCAsBySerialNumber().isEmpty());
-    }
-
-    @Test
     public void testRootsBySerialNumbers() {
         assertFalse(CertificateAuthorityTasdeeq.getRootCAsBySerialNumber().isEmpty());
     }
