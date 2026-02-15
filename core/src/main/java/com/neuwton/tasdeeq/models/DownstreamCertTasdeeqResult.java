@@ -6,6 +6,7 @@ import java.util.List;
 public class DownstreamCertTasdeeqResult {
 
     private List<X509Certificate> downstreamCertChain;
+    private boolean isTrusted;
 
     public List<X509Certificate> getDownstreamCertChain() {
         return downstreamCertChain;
@@ -13,6 +14,14 @@ public class DownstreamCertTasdeeqResult {
 
     public void setDownstreamCertChain(List<X509Certificate> downstreamCertChain) {
         this.downstreamCertChain = downstreamCertChain;
+    }
+
+    public boolean isTrusted() {
+        return isTrusted;
+    }
+
+    public void setTrusted(boolean trusted) {
+        isTrusted = trusted;
     }
 
 }

@@ -4,6 +4,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.neuwton.tasdeeq.CertificateAuthorityTasdeeq;
 import com.neuwton.tasdeeq.DownstreamCertTasdeeq;
 import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
+import com.neuwton.tasdeeq.models.DownstreamCertTasdeeqResult;
 import com.neuwton.utils.MockServer;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.BeforeAll;
@@ -111,9 +112,10 @@ public class DownstreamCertTasdeeqTests {
         int port = 28443;
         WireMockServer wireMockServer = MockServer
                 .initServer(SERVER_PORT+"="+port,KEYSTORE_PATH+"="+TEMP_DIR+JKS_FILE_NAME_SELF_SIGNED, KEYSTORE_PASSWORD+"="+CHANGE_IT);
-        List<X509Certificate> certs = DownstreamCertTasdeeq.tasdeeq("localhost", port, false).getDownstreamCertChain();
-        assertNotNull(certs);
-        assertFalse(CertificateAuthorityTasdeeq.rootCAisTrusted(certs));
+        DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq("localhost", port, false);
+        assertNotNull(result.getDownstreamCertChain());
+        assertFalse(result.isTrusted());
+        assertFalse(CertificateAuthorityTasdeeq.rootCAisTrusted(result.getDownstreamCertChain()));
         wireMockServer.stop();
     }
 

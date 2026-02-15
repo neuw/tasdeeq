@@ -52,7 +52,8 @@ public class DownstreamCertTasdeeq {
             // Strict mode: fail hard if validation fails
             try {
                 result.setDownstreamCertChain(fetchCertificates(hostName, port));
-            } catch (Exception e) {
+            } catch (IOException e) {
+                result.setTrusted(false);
                 logger.error("Certificate validation failed for {}:{}", hostName, port, e);
                 throw new CertificateValidationException(
                         "Certificate chain validation failed for " + hostName + ":" + port, e);
@@ -65,6 +66,7 @@ public class DownstreamCertTasdeeq {
             } catch (IOException e) {
                 logger.error("Validation failed for {}:{}, retrying next without chain validation: {}",
                         hostName, port, e.getMessage());
+                result.setTrusted(false);
                 result.setDownstreamCertChain(fetchCertificateWithoutChainValidation(hostName, port));
             }
         }
