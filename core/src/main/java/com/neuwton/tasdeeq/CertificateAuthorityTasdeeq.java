@@ -1,6 +1,6 @@
 package com.neuwton.tasdeeq;
 
-
+import com.neuwton.tasdeeq.models.CertificateAuthorityTasdeeqResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,15 +19,10 @@ public class CertificateAuthorityTasdeeq {
 
     private static final Logger logger = LoggerFactory.getLogger(CertificateAuthorityTasdeeq.class);
 
-    private static final Map<String, X509Certificate> rootCAsBySerialNumber = new HashMap<>();
-    private static final Map<String, X509Certificate> rootCAsBySubjectDN = new HashMap<>();
+    private static CertificateAuthorityTasdeeqResult tasdeeq;
 
-    public static Map<String, X509Certificate> getRootCAsBySerialNumber() {
-        return rootCAsBySerialNumber;
-    }
-
-    public static Map<String, X509Certificate> getRootCAsBySubjectDN() {
-        return rootCAsBySubjectDN;
+    public static CertificateAuthorityTasdeeqResult tasdeeq() {
+        return tasdeeq;
     }
 
     static {
@@ -40,6 +35,8 @@ public class CertificateAuthorityTasdeeq {
     }
 
     private static void populateRootCAs() throws NoSuchAlgorithmException, KeyStoreException {
+        Map<String, X509Certificate> rootCAsBySerialNumber = new HashMap<>();
+        Map<String, X509Certificate> rootCAsBySubjectDN = new HashMap<>();
         // Get the default truststore using TrustManagerFactory
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         tmf.init((KeyStore) null); // Pass null to use the default truststore
@@ -79,10 +76,11 @@ public class CertificateAuthorityTasdeeq {
                 }
             }
         }
+        tasdeeq = new CertificateAuthorityTasdeeqResult(rootCAsBySerialNumber, rootCAsBySubjectDN);
     }
 
     private static boolean rootCABySerialNumberExists(X509Certificate cert) {
-        return rootCAsBySerialNumber.containsKey(cert.getSerialNumber().toString());
+        return tasdeeq().getRootCAsBySerialNumber().containsKey(cert.getSerialNumber().toString());
     }
 
     public static boolean rootCAisTrusted(List<X509Certificate> chain) {
@@ -106,7 +104,7 @@ public class CertificateAuthorityTasdeeq {
         for (X509Certificate cert : chain) {
             if (cert.getBasicConstraints() != -1) {
                 // intermediate CA cert — check if its issuer is a trusted root
-                X509Certificate trustedRoot = rootCAsBySubjectDN.get(
+                X509Certificate trustedRoot = tasdeeq().getRootCAsBySubjectDN().get(
                         cert.getIssuerX500Principal().getName());
                 if (trustedRoot != null && verifySignature(cert, trustedRoot)) {
                     logger.info("Intermediate CA [{}] is signed by trusted Root CA [{}]",
@@ -116,7 +114,7 @@ public class CertificateAuthorityTasdeeq {
                 }
             } else {
                 // Leaf (end-entity) — check if directly signed by a trusted root
-                X509Certificate trustedRoot = rootCAsBySubjectDN.get(
+                X509Certificate trustedRoot = tasdeeq().getRootCAsBySubjectDN().get(
                         cert.getIssuerX500Principal().getName());
                 if (trustedRoot != null && verifySignature(cert, trustedRoot)) {
                     logger.info("Leaf [{}] is directly signed by trusted Root CA [{}]",
@@ -151,7 +149,7 @@ public class CertificateAuthorityTasdeeq {
     private static boolean isSelfSigned(X509Certificate cert) {
         try {
             cert.verify(cert.getPublicKey());
-            return cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal());
+            return cert.getSubjectX500Principal().getName().equals(cert.getIssuerX500Principal().getName());
         } catch (Exception e) {
             return false;
         }

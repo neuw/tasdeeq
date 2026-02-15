@@ -14,7 +14,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.nio.file.Path;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.util.List;
@@ -54,32 +56,32 @@ public class DownstreamCertTasdeeqTests {
     }
 
     @Test
-    public void testDownstreamCert() {
-        assertNotNull(DownstreamCertTasdeeq.getDownstreamCert("google.com"));
+    public void testDownstreamCert() throws NoSuchAlgorithmException, KeyManagementException {
+        assertNotNull(DownstreamCertTasdeeq.tasdeeq("google.com"));
     }
 
     @Test
-    public void testDownstreamCertByPort() {
-        assertNotNull(DownstreamCertTasdeeq.getDownstreamCert("google.com", 443));
+    public void testDownstreamCertByPort() throws NoSuchAlgorithmException, KeyManagementException {
+        assertNotNull(DownstreamCertTasdeeq.tasdeeq("google.com", 443));
     }
 
     @Test
-    public void testDownstreamCertsDisabledSSLValidation() {
-        assertNotNull(DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443, false));
+    public void testDownstreamCertsDisabledSSLValidation() throws NoSuchAlgorithmException, KeyManagementException {
+        assertNotNull(DownstreamCertTasdeeq.tasdeeq("localhost", 8443, false));
     }
 
     @Test
     public void testDownstreamCertsDefaultSSLValidation() {
         // this also equivalent to the call DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443, true);
         assertThrows(CertificateValidationException.class, () -> {
-            DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443);
+            DownstreamCertTasdeeq.tasdeeq("localhost", 8443);
         });
     }
 
     @Test
     public void testDownstreamCertsCustomTrustStore() throws Exception {
         assertThrows(CertificateValidationException.class, () -> {
-            DownstreamCertTasdeeq.getDownstreamCert("localhost", 8443, true);
+            DownstreamCertTasdeeq.tasdeeq("localhost", 8443, true);
         });
         // load the keystore
         KeyStore keyStore = loadFullChainKeyStore();
@@ -99,7 +101,7 @@ public class DownstreamCertTasdeeqTests {
         int port = 18443;
         WireMockServer wireMockServer = MockServer
                 .initServer(SERVER_PORT+"="+port,KEYSTORE_PATH+"="+TEMP_DIR+JKS_FILE_NAME_ROOT_SIGNED, KEYSTORE_PASSWORD+"="+CHANGE_IT);
-        assertNotNull(DownstreamCertTasdeeq.getDownstreamCert("localhost", port, false));
+        assertNotNull(DownstreamCertTasdeeq.tasdeeq("localhost", port, false));
         wireMockServer.stop();
     }
 
@@ -109,7 +111,7 @@ public class DownstreamCertTasdeeqTests {
         int port = 28443;
         WireMockServer wireMockServer = MockServer
                 .initServer(SERVER_PORT+"="+port,KEYSTORE_PATH+"="+TEMP_DIR+JKS_FILE_NAME_SELF_SIGNED, KEYSTORE_PASSWORD+"="+CHANGE_IT);
-        List<X509Certificate> certs = DownstreamCertTasdeeq.getDownstreamCert("localhost", port, false);
+        List<X509Certificate> certs = DownstreamCertTasdeeq.tasdeeq("localhost", port, false).getDownstreamCertChain();
         assertNotNull(certs);
         assertFalse(CertificateAuthorityTasdeeq.rootCAisTrusted(certs));
         wireMockServer.stop();

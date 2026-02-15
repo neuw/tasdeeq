@@ -1,14 +1,13 @@
 package com.neuwton.tasdeeq;
 
 import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
+import com.neuwton.tasdeeq.models.DownstreamCertTasdeeqResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
-import java.security.KeyStore;
-import java.security.Principal;
-import java.security.PublicKey;
-import java.security.SecureRandom;
+import java.io.IOException;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
@@ -26,12 +25,12 @@ public class DownstreamCertTasdeeq {
      * @return the server's X509 certificate
      * @throws CertificateValidationException if validation fails
      */
-    public static List<X509Certificate> getDownstreamCert(String hostName) {
-        return getDownstreamCert(hostName, 443, true);
+    public static DownstreamCertTasdeeqResult tasdeeq(String hostName) throws NoSuchAlgorithmException, KeyManagementException {
+        return tasdeeq(hostName, 443, true);
     }
 
-    public static List<X509Certificate> getDownstreamCert(String hostName, int port) {
-        return getDownstreamCert(hostName, port, true);
+    public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port) throws NoSuchAlgorithmException, KeyManagementException {
+        return tasdeeq(hostName, port, true);
     }
 
     /**
@@ -44,13 +43,15 @@ public class DownstreamCertTasdeeq {
      * @return the server's X509 certificate
      * @throws CertificateValidationException if validateChain=true and validation fails
      */
-    public static List<X509Certificate> getDownstreamCert(String hostName, int port, boolean validateChain) {
-        logger.debug("Fetching certificate for {}:{} (validateChain={})", hostName, port, validateChain);
+    public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port, boolean validateChain) throws NoSuchAlgorithmException, KeyManagementException {
+        logger.info("Fetching certificate for {}:{} (validateChain={})", hostName, port, validateChain);
+
+        DownstreamCertTasdeeqResult result = new DownstreamCertTasdeeqResult();
 
         if (validateChain) {
             // Strict mode: fail hard if validation fails
             try {
-                return fetchCertificateWithValidation(hostName, port);
+                result.setDownstreamCertChain(fetchCertificates(hostName, port));
             } catch (Exception e) {
                 logger.error("Certificate validation failed for {}:{}", hostName, port, e);
                 throw new CertificateValidationException(
@@ -60,45 +61,17 @@ public class DownstreamCertTasdeeq {
             // Lenient mode: try with validation first, fallback to without validation
             try {
                 logger.info("Attempting the fetching of certificate details with validation 'ON' first for {}:{}", hostName, port);
-                return fetchCertificateWithValidation(hostName, port);
-            } catch (Exception e) {
+                result.setDownstreamCertChain(fetchCertificates(hostName, port));
+            } catch (IOException e) {
                 logger.error("Validation failed for {}:{}, retrying next without chain validation: {}",
                         hostName, port, e.getMessage());
-
-                return fetchCertificateWithoutValidation(hostName, port);
+                result.setDownstreamCertChain(fetchCertificateWithoutChainValidation(hostName, port));
             }
         }
+        return result;
     }
 
-    private static List<X509Certificate> fetchCertificateWithCustomSSLSockerFactory(String hostname, int port) throws Exception {
-        logger.info("Fetching certificate with validation enabled");
-
-        // Get factory from current default SSLContext — picks up addTrustedRoots changes
-        SSLSocketFactory factory = SSLContext.getDefault().getSocketFactory();
-
-        try (SSLSocket socket = (SSLSocket) factory.createSocket(hostname, port)) {
-            socket.startHandshake();
-            SSLSession session = socket.getSession();
-
-            Certificate[] certs = session.getPeerCertificates();
-            List<X509Certificate> x509Certs = new ArrayList<>();
-
-            logger.info("Retrieved {} certificate(s) in chain", certs.length);
-
-            for (Certificate cert : certs) {
-                if (cert instanceof X509Certificate) {
-                    X509Certificate x509 = (X509Certificate) cert;
-                    x509Certs.add(x509);
-                    String certType = classifyCertificate(x509);
-                    logCertificateDetails(x509, certType);
-                }
-            }
-
-            return orderChain(x509Certs);
-        }
-    }
-
-    private static List<X509Certificate> fetchCertificateWithValidation(String hostname, int port) throws Exception {
+    private static List<X509Certificate> fetchCertificates(String hostname, int port) throws IOException {
         logger.info("Fetching certificate with validation enabled");
         SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
 
@@ -129,7 +102,7 @@ public class DownstreamCertTasdeeq {
      * Fetches with custom truststore.
      */
     public static List<X509Certificate> getDownstreamCertWithCustomTruststore(
-            String hostname, int port, X509Certificate... additionalCAs) throws Exception {
+            String hostname, int port, X509Certificate... additionalCAs) throws NoSuchAlgorithmException, CertificateException, KeyStoreException, IOException, KeyManagementException {
 
         logger.info("Fetching certificate with custom truststore");
 
@@ -141,7 +114,7 @@ public class DownstreamCertTasdeeq {
         addTrustedRoots(additionalCAs);
 
         try {
-            List<X509Certificate> certs = fetchCertificateWithCustomSSLSockerFactory(hostname, port);
+            List<X509Certificate> certs = fetchCertificates(hostname, port);
             logger.info("Certificates fetched successfully");
             return certs;
         } catch (Exception e) {
@@ -160,7 +133,7 @@ public class DownstreamCertTasdeeq {
      * Fetches certificate WITHOUT validation (for self-signed/expired certs).
      * IMPORTANT: This bypasses security checks - use only when appropriate!
      */
-    private static List<X509Certificate> fetchCertificateWithoutValidation(String hostname, int port) {
+    private static List<X509Certificate> fetchCertificateWithoutChainValidation(String hostname, int port) throws NoSuchAlgorithmException, KeyManagementException {
         logger.info("Fetching certificate WITHOUT validation for {}:{} - this bypasses security!", hostname, port);
 
         // Store original settings
@@ -195,12 +168,8 @@ public class DownstreamCertTasdeeq {
             throw new CertificateValidationException(
                     "Failed to fetch certificate for " + hostname + ":" + port, e);
         } finally {
-            try {
-                enableCertificateValidation(originalSocketFactory, originalHostnameVerifier);
-                logger.info("Certificate validation re-enabled");
-            } catch (Exception e) {
-                logger.error("Failed to re-enable certificate validation!", e);
-            }
+            enableCertificateValidation(originalSocketFactory, originalHostnameVerifier);
+            logger.info("Certificate validation re-enabled");
         }
     }
 
@@ -264,7 +233,7 @@ public class DownstreamCertTasdeeq {
         HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
     }
 
-    private static void addTrustedRoots(X509Certificate... additionalCAs) throws Exception {
+    private static void addTrustedRoots(X509Certificate... additionalCAs) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, KeyManagementException {
         // Load the default system truststore (JDK cacerts)
         TrustManagerFactory defaultTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         defaultTmf.init((KeyStore) null);
@@ -335,7 +304,7 @@ public class DownstreamCertTasdeeq {
 
     private static void enableCertificateValidation(
             SSLSocketFactory originalSocketFactory,
-            HostnameVerifier originalHostnameVerifier) throws Exception {
+            HostnameVerifier originalHostnameVerifier) throws NoSuchAlgorithmException, KeyManagementException {
 
         logger.debug("Re-enabling certificate validation");
 

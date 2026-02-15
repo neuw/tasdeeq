@@ -1,6 +1,7 @@
 package com.neuwton;
 
 import com.neuwton.tasdeeq.JVMTasdeeq;
+import com.neuwton.tasdeeq.models.JVMTasdeeqResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -12,7 +13,7 @@ public class JVMTasdeeqTests {
 
     @Test
     public void testJDKVersion() throws Exception {
-        JVMTasdeeq.JVMTasdeeqResult result = JVMTasdeeq.tasdeeq();
+        JVMTasdeeqResult result = JVMTasdeeq.tasdeeq();
         assertNotNull(result);
         assertNotNull(result.getJdkVersion());
         assertTrue(result.getClassVersion() >= 52);
