@@ -18,6 +18,17 @@ public class DNSTasdeeq {
     private static final String DNS_FACTORY = "com.sun.jndi.dns.DnsContextFactory";
     private static final String DNS_URL = "dns://";
 
+    public static List<DNSTasdeeqResult> tasdeeq(List<String> domains, String... recordTypes) {
+        if (domains != null && !domains.isEmpty()) {
+            List<DNSTasdeeqResult> results = new ArrayList<>();
+            domains.forEach(domain -> {
+                results.add(tasdeeq(domain, recordTypes));
+            });
+            return results;
+        }
+        return null;
+    }
+
     public static DNSTasdeeqResult tasdeeq(String domain, String... recordTypes) {
         DNSTasdeeqResult result = new DNSTasdeeqResult(domain);
 

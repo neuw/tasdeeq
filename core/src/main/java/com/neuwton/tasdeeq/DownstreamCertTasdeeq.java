@@ -43,7 +43,7 @@ public class DownstreamCertTasdeeq {
      * @return the server's X509 certificate
      * @throws CertificateValidationException if validateChain=true and validation fails
      */
-    public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port, boolean validateChain) throws NoSuchAlgorithmException, KeyManagementException {
+    public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port, boolean validateChain) {
         logger.info("Fetching certificate for {}:{} (validateChain={})", hostName, port, validateChain);
 
         DownstreamCertTasdeeqResult result = new DownstreamCertTasdeeqResult();
@@ -67,7 +67,11 @@ public class DownstreamCertTasdeeq {
                 logger.error("Validation failed for {}:{}, retrying next without chain validation: {}",
                         hostName, port, e.getMessage());
                 result.setTrusted(false);
-                result.setDownstreamCertChain(fetchCertificateWithoutChainValidation(hostName, port));
+                try {
+                    result.setDownstreamCertChain(fetchCertificateWithoutChainValidation(hostName, port));
+                } catch (NoSuchAlgorithmException | KeyManagementException ex) {
+                    logger.error("Failed to fetch certificate without validation for hostname: {} on port: {}, exception is {}", hostName, port, ex.getMessage());
+                }
             }
         }
         return result;
