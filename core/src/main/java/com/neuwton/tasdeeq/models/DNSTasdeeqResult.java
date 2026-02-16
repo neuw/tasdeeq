@@ -5,13 +5,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DNSQueryResult {
+public class DNSTasdeeqResult {
         private final String domain;
         private final Map<String, List<String>> records = new HashMap<>();
         private final Map<String, String> errors = new HashMap<>();
         private String connectionError = "no error";
 
-        public DNSQueryResult(String domain) {
+        public DNSTasdeeqResult(String domain) {
             this.domain = domain;
         }
 
