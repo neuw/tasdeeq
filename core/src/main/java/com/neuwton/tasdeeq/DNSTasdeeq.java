@@ -1,6 +1,7 @@
 package com.neuwton.tasdeeq;
 
 import com.neuwton.tasdeeq.models.DNSTasdeeqResult;
+import com.neuwton.tasdeeq.models.DNSTasdeeqResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,13 +19,15 @@ public class DNSTasdeeq {
     private static final String DNS_FACTORY = "com.sun.jndi.dns.DnsContextFactory";
     private static final String DNS_URL = "dns://";
 
-    public static List<DNSTasdeeqResult> tasdeeq(List<String> domains, String... recordTypes) {
+    public static DNSTasdeeqResults tasdeeq(List<String> domains, String... recordTypes) {
         if (domains != null && !domains.isEmpty()) {
             List<DNSTasdeeqResult> results = new ArrayList<>();
             domains.forEach(domain -> {
                 results.add(tasdeeq(domain, recordTypes));
             });
-            return results;
+            DNSTasdeeqResults dnsTasdeeqResults = new DNSTasdeeqResults();
+            dnsTasdeeqResults.setResults(results);
+            return dnsTasdeeqResults;
         }
         return null;
     }

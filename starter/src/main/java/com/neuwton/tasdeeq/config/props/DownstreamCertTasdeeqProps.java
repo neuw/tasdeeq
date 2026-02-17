@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.Map;
 
-@ConfigurationProperties(prefix = "com.neuwton.tasdeeq.cert")
+@ConfigurationProperties(prefix = "neuwton.tasdeeq.cert")
 public class DownstreamCertTasdeeqProps {
 
     private boolean enabled = true;

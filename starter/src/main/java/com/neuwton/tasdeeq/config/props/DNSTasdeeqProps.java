@@ -3,14 +3,13 @@ package com.neuwton.tasdeeq.config.props;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-@ConfigurationProperties(prefix = "com.neuwton.tasdeeq.dns")
+@ConfigurationProperties(prefix = "neuwton.tasdeeq.dns")
 public class DNSTasdeeqProps {
 
     private boolean enabled = true;
+    private int cacheTtlSeconds = 600;
     private List<String> domains = new ArrayList<>();
     private List<String> records = List.of("A", "AAAA", "MX", "TXT", "CNAME", "NS");
 
@@ -38,4 +37,12 @@ public class DNSTasdeeqProps {
         this.records = records;
     }
 
+    public int getCacheTtlSeconds() {
+        return cacheTtlSeconds;
+    }
+
+    public DNSTasdeeqProps setCacheTtlSeconds(int cacheTtlSeconds) {
+        this.cacheTtlSeconds = cacheTtlSeconds;
+        return this;
+    }
 }

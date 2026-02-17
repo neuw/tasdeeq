@@ -2,7 +2,7 @@ package com.neuwton.tasdeeq.config.props;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "com.neuwton.tasdeeq.ca")
+@ConfigurationProperties(prefix = "neuwton.tasdeeq.ca")
 public class CertificateAuthorityTasdeeqProps {
 
     private boolean enabled = true;

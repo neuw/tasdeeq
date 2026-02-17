@@ -2,14 +2,14 @@ package com.neuwton.tasdeeq.models;
 
 public class JVMTasdeeqResult {
         private final int classVersion;
-        private final String jdkVersion;
+        private final String buildJDKVersion;
         private final String jreVersion;
         private final String runtimeVersion;
         private final String vendor;
 
-        public JVMTasdeeqResult(int classVersion, String jdkVersion, String jreVersion, String runtimeVersion, String vendor) {
+        public JVMTasdeeqResult(int classVersion, String buildJDKVersion, String jreVersion, String runtimeVersion, String vendor) {
             this.classVersion = classVersion;
-            this.jdkVersion = jdkVersion;
+            this.buildJDKVersion = buildJDKVersion;
             this.jreVersion = jreVersion;
             this.runtimeVersion = runtimeVersion;
             this.vendor = vendor;
@@ -19,8 +19,8 @@ public class JVMTasdeeqResult {
             return classVersion;
         }
 
-        public String getJdkVersion() {
-            return jdkVersion;
+        public String getBuildJDKVersion() {
+            return buildJDKVersion;
         }
 
         public String getJreVersion() {
@@ -39,7 +39,7 @@ public class JVMTasdeeqResult {
         public String toString() {
             return "JDK Tasdeeq Result {" +
                     "classVersion=" + classVersion +
-                    ", jdkVersion='" + jdkVersion + '\'' +
+                    ", jdkVersion='" + buildJDKVersion + '\'' +
                     ", javaVersion='" + jreVersion + '\'' +
                     ", runtimeVersion='" + runtimeVersion + '\'' +
                     ", vendor='" + vendor + '\'' +

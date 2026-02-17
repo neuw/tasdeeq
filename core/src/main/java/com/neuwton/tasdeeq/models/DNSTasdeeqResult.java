@@ -39,6 +39,14 @@ public class DNSTasdeeqResult {
         return connectionError;
     }
 
+    public Map<String, List<String>> getRecords() {
+        return records;
+    }
+
+    public Map<String, String> getErrors() {
+        return errors;
+    }
+
     @Override
     public String toString() {
         return "DNSQueryResult{" +

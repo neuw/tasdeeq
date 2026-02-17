@@ -155,4 +155,16 @@ public class CertificateAuthorityTasdeeq {
         }
     }
 
+    public static String getCertificateType(X509Certificate x509) {
+        if (x509.getExtensionValue("2.5.29.19") != null) {
+            if (isSelfSigned(x509) && x509.getBasicConstraints() != -1) {
+                return "ROOT CA";
+            } else {
+                return "INTERMEDIATE CA";
+            }
+        } else {
+            return "LEAF";
+        }
+    }
+
 }

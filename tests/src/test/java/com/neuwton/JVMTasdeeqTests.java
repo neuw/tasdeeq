@@ -15,7 +15,7 @@ public class JVMTasdeeqTests {
     public void testJDKVersion() throws Exception {
         JVMTasdeeqResult result = JVMTasdeeq.tasdeeq();
         assertNotNull(result);
-        assertNotNull(result.getJdkVersion());
+        assertNotNull(result.getBuildJDKVersion());
         assertTrue(result.getClassVersion() >= 52);
         assertNotNull(result.getVendor());
         assertNotNull(result.getJreVersion());

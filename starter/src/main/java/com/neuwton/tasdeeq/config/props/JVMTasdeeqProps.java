@@ -2,7 +2,7 @@ package com.neuwton.tasdeeq.config.props;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "com.neuwton.tasdeeq.jvm")
+@ConfigurationProperties(prefix = "neuwton.tasdeeq.jvm")
 public class JVMTasdeeqProps {
     private boolean enabled = true;
 
