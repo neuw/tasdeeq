@@ -7,7 +7,6 @@ import com.neuwton.tasdeeq.models.DNSTasdeeqResults;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.util.CollectionUtils;
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;

@@ -5,23 +5,28 @@ import java.util.List;
 
 public class DownstreamCertTasdeeqResult {
 
+    private String host;
+    private int port;
+    private boolean validateChain;
     private List<X509Certificate> downstreamCertChain;
     private boolean isTrusted;
+    private String connectionError;
 
-    public List<X509Certificate> getDownstreamCertChain() {
-        return downstreamCertChain;
-    }
+    public String getHost() { return host; }
+    public DownstreamCertTasdeeqResult setHost(String host) { this.host = host; return this; }
 
-    public void setDownstreamCertChain(List<X509Certificate> downstreamCertChain) {
-        this.downstreamCertChain = downstreamCertChain;
-    }
+    public int getPort() { return port; }
+    public DownstreamCertTasdeeqResult setPort(int port) { this.port = port; return this; }
 
-    public boolean isTrusted() {
-        return isTrusted;
-    }
+    public boolean isValidateChain() { return validateChain; }
+    public DownstreamCertTasdeeqResult setValidateChain(boolean validateChain) { this.validateChain = validateChain; return this; }
 
-    public void setTrusted(boolean trusted) {
-        isTrusted = trusted;
-    }
+    public List<X509Certificate> getDownstreamCertChain() { return downstreamCertChain; }
+    public DownstreamCertTasdeeqResult setDownstreamCertChain(List<X509Certificate> downstreamCertChain) { this.downstreamCertChain = downstreamCertChain; return this; }
 
+    public boolean isTrusted() { return isTrusted; }
+    public DownstreamCertTasdeeqResult setTrusted(boolean trusted) { isTrusted = trusted; return this; }
+
+    public String getConnectionError() { return connectionError; }
+    public DownstreamCertTasdeeqResult setConnectionError(String connectionError) { this.connectionError = connectionError; return this; }
 }

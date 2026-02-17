@@ -5,12 +5,14 @@ import com.neuwton.tasdeeq.DNSTasdeeq;
 import com.neuwton.tasdeeq.DownstreamCertTasdeeq;
 import com.neuwton.tasdeeq.JVMTasdeeq;
 import com.neuwton.tasdeeq.config.actuators.contributors.health.DNSTasdeeqContributor;
+import com.neuwton.tasdeeq.config.actuators.contributors.health.DownstreamCertificateHealthContributor;
 import com.neuwton.tasdeeq.config.actuators.contributors.info.CertificateAuthorityContributor;
 import com.neuwton.tasdeeq.config.actuators.contributors.info.JVMTasdeeqContributor;
 import com.neuwton.tasdeeq.config.props.CertificateAuthorityTasdeeqProps;
 import com.neuwton.tasdeeq.config.props.DNSTasdeeqProps;
 import com.neuwton.tasdeeq.config.props.DownstreamCertTasdeeqProps;
 import com.neuwton.tasdeeq.config.props.JVMTasdeeqProps;
+import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
 import com.neuwton.tasdeeq.models.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -76,16 +78,42 @@ public class TasdeeqAutoConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "com.neuwton.tasdeeq.cert", name = "enabled", havingValue = "true")
-    public List<DownstreamCertTasdeeqResult> downstreamCertTasdeeqResults(DownstreamCertTasdeeqProps props) {
+    @ConditionalOnProperty(prefix = "neuwton.tasdeeq.cert", name = "enabled", havingValue = "true")
+    public DownstreamCertResults downstreamCertTasdeeqResults(DownstreamCertTasdeeqProps props) {
+        DownstreamCertResults downstreamCertResults = new DownstreamCertResults();
         if (!CollectionUtils.isEmpty(props.getDomains())) {
             List<DownstreamCertTasdeeqResult> results = new ArrayList<>();
             props.getDomains().forEach((k, v) -> {
-                    results.add(DownstreamCertTasdeeq.tasdeeq(v.getHost(), v.getPort(), v.isValidateChain()));
+                try {
+                    DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
+                            v.getHost(), v.getPort(), v.isValidateChain());
+                    result.setHost(v.getHost())
+                            .setPort(v.getPort())
+                            .setValidateChain(v.isValidateChain());
+                    results.add(result);
+                } catch (CertificateValidationException e) {
+                    results.add(new DownstreamCertTasdeeqResult()
+                            .setHost(v.getHost())
+                            .setPort(v.getPort())
+                            .setValidateChain(v.isValidateChain())
+                            .setTrusted(false)
+                            .setConnectionError(e.getMessage()));
+                }
             });
-            return results;
+            downstreamCertResults.setResults(results);
+        } else {
+            downstreamCertResults.setResults(Collections.emptyList());
         }
-        return Collections.emptyList();
+        return downstreamCertResults;
+    }
+
+    @Bean("downstream-certs")
+    @ConditionalOnBean(DownstreamCertResults.class)
+    @ConditionalOnEnabledHealthIndicator("downstream-certs")
+    public DownstreamCertificateHealthContributor downstreamCertHealthContributor(DownstreamCertResults results,
+                                                                                  DownstreamCertTasdeeqProps props,
+                                                                                  JsonMapper jsonMapper) {
+        return new DownstreamCertificateHealthContributor(results, props);
     }
 
 }

@@ -8,6 +8,7 @@ import java.util.Map;
 public class DownstreamCertTasdeeqProps {
 
     private boolean enabled = true;
+    private int cacheTtlSeconds = 600;
     private Map<String, DomainProps> domains = Map.of();
     private boolean strictChainValidation = true;
 
@@ -33,6 +34,15 @@ public class DownstreamCertTasdeeqProps {
 
     public void setStrictChainValidation(boolean strictChainValidation) {
         this.strictChainValidation = strictChainValidation;
+    }
+
+    public int getCacheTtlSeconds() {
+        return cacheTtlSeconds;
+    }
+
+    public DownstreamCertTasdeeqProps setCacheTtlSeconds(int cacheTtlSeconds) {
+        this.cacheTtlSeconds = cacheTtlSeconds;
+        return this;
     }
 
     public static class DomainProps {
