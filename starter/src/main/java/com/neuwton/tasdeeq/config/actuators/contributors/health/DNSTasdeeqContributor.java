@@ -4,8 +4,12 @@ import com.neuwton.tasdeeq.DNSTasdeeq;
 import com.neuwton.tasdeeq.config.props.DNSTasdeeqProps;
 import com.neuwton.tasdeeq.models.DNSTasdeeqResult;
 import com.neuwton.tasdeeq.models.DNSTasdeeqResults;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.context.event.EventListener;
 import org.springframework.util.CollectionUtils;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -13,13 +17,19 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class DNSTasdeeqContributor implements HealthIndicator {
 
-    private DNSTasdeeqResults results;
+    private volatile DNSTasdeeqResults results;
     private final JsonMapper jsonMapper;
     private final DNSTasdeeqProps props;
+    private final AtomicBoolean fetching = new AtomicBoolean(false);
+    private volatile boolean applicationReady = false;
+
+    private static final Logger logger = LoggerFactory.getLogger(DNSTasdeeqContributor.class);
 
     public DNSTasdeeqContributor(DNSTasdeeqResults results,
                                  DNSTasdeeqProps props,
@@ -29,25 +39,65 @@ public class DNSTasdeeqContributor implements HealthIndicator {
         this.jsonMapper = jsonMapper;
     }
 
-    @Override
-    public Health health(boolean includeDetails) {
-        if (!CollectionUtils.isEmpty(props.getDomains())) {
-            if (this.results.getInstant().isBefore(Instant.now().minusSeconds(props.getCacheTtlSeconds()))) {
-                // fetch new results once 10 minutes have lapsed since the last fetch
-                this.results = DNSTasdeeq.tasdeeq(
-                        props.getDomains(),
-                        props.getRecords().toArray(String[]::new));
-            }
-            return health();
-        } else {
-            return Health.up()
-                    .withDetail("reason", "no domains configured")
-                    .build();
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        applicationReady = true;
+        // Trigger first fetch async after boot
+        if (fetching.compareAndSet(false, true)) {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    this.results = DNSTasdeeq.tasdeeq(
+                            props.getDomains(),
+                            props.getRecords().toArray(new String[0]));
+                } finally {
+                    fetching.set(false);
+                }
+            });
         }
     }
 
     @Override
+    public Health health(boolean includeDetails) {
+        if (CollectionUtils.isEmpty(props.getDomains())) {
+            return Health.up()
+                    .withDetail("reason", "no domains configured")
+                    .build();
+        }
+
+        if (!applicationReady || this.results == null) {
+            return Health.up()
+                    .withDetail("reason", applicationReady ? "pending first fetch" : "application starting up")
+                    .build();
+        }
+
+        if (isStale()) {
+            // stale — block and fetch fresh data
+            if (fetching.compareAndSet(false, true)) {
+                try {
+                    this.results = DNSTasdeeq.tasdeeq(
+                            props.getDomains(),
+                            props.getRecords().toArray(new String[0]));
+                } finally {
+                    fetching.set(false);
+                }
+            }
+        }
+
+        return health();
+    }
+
+    private boolean isStale() {
+        return this.results.getInstant()
+                .isBefore(Instant.now().minusSeconds(props.getCacheTtlSeconds()));
+    }
+
+    @Override
     public Health health() {
+        if (CollectionUtils.isEmpty(results.getResults())) {
+            return Health.up()
+                    .withDetail("reason", "no data available yet")
+                    .build();
+        }
         List<DNSTasdeeqResult> failed = results.getResults().stream()
                 .filter(r -> !r.getConnectionError().equals("no error"))
                 .toList();

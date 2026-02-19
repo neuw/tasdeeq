@@ -8,7 +8,7 @@ import java.util.Map;
 public class DownstreamCertTasdeeqProps {
 
     private boolean enabled = true;
-    private int cacheTtlSeconds = 600;
+    private int cacheTtlSeconds = 3600;
     private Map<String, DomainProps> domains = Map.of();
     private boolean strictChainValidation = true;
 

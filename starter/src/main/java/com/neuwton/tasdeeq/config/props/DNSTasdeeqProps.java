@@ -9,7 +9,7 @@ import java.util.List;
 public class DNSTasdeeqProps {
 
     private boolean enabled = true;
-    private int cacheTtlSeconds = 600;
+    private int cacheTtlSeconds = 3600;
     private List<String> domains = new ArrayList<>();
     private List<String> records = List.of("A", "AAAA", "MX", "TXT", "CNAME", "NS");
 

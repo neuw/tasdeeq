@@ -47,7 +47,7 @@ public class CertificateAuthorityTasdeeq {
 
                 for (X509Certificate x509 : xtm.getAcceptedIssuers()) {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("Certificate: [");
+                    sb.append("Trust Chain - Certificate: [");
                     sb.append(x509.getIssuerX500Principal().getName());
                     sb.append("] Serial Number: [");
                     sb.append(x509.getSerialNumber());

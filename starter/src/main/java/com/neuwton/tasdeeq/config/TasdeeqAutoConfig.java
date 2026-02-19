@@ -4,9 +4,9 @@ import com.neuwton.tasdeeq.CertificateAuthorityTasdeeq;
 import com.neuwton.tasdeeq.DNSTasdeeq;
 import com.neuwton.tasdeeq.DownstreamCertTasdeeq;
 import com.neuwton.tasdeeq.JVMTasdeeq;
-import com.neuwton.tasdeeq.config.actuators.contributors.health.DNSTasdeeqContributor;
 import com.neuwton.tasdeeq.config.actuators.contributors.health.DownstreamCertificateHealthContributor;
 import com.neuwton.tasdeeq.config.actuators.contributors.info.CertificateAuthorityContributor;
+import com.neuwton.tasdeeq.config.actuators.contributors.info.DNSTasdeeqInfoContributor;
 import com.neuwton.tasdeeq.config.actuators.contributors.info.JVMTasdeeqContributor;
 import com.neuwton.tasdeeq.config.props.CertificateAuthorityTasdeeqProps;
 import com.neuwton.tasdeeq.config.props.DNSTasdeeqProps;
@@ -16,10 +16,12 @@ import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
 import com.neuwton.tasdeeq.models.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.util.CollectionUtils;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -27,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @AutoConfiguration
 @EnableConfigurationProperties({
@@ -62,19 +65,19 @@ public class TasdeeqAutoConfig {
     @Bean
     @ConditionalOnProperty(prefix = "neuwton.tasdeeq.dns", name = "enabled", havingValue = "true")
     public DNSTasdeeqResults dnsTasdeeqResults(DNSTasdeeqProps props) {
-        if (!CollectionUtils.isEmpty(props.getDomains())) {
-            return DNSTasdeeq.tasdeeq(props.getDomains(), props.getRecords().toArray(String[]::new));
-        }
-        return null;
+        return DNSTasdeeq.tasdeeq(
+                props.getDomains(),
+                props.getRecords().toArray(String[]::new));
     }
 
     @Bean("dns")
     @ConditionalOnBean(DNSTasdeeqResults.class)
     @ConditionalOnEnabledHealthIndicator("dns-details")
-    public DNSTasdeeqContributor dnsTasdeeqContributor(DNSTasdeeqResults results,
-                                                       DNSTasdeeqProps props,
-                                                       JsonMapper jsonMapper) {
-        return new DNSTasdeeqContributor(results, props, jsonMapper);
+    public DNSTasdeeqInfoContributor dnsTasdeeqContributor(DNSTasdeeqResults results,
+                                                           DNSTasdeeqProps props,
+                                                           JsonMapper jsonMapper,
+                                                           ApplicationEventMulticaster eventMulticaster) {
+        return new DNSTasdeeqInfoContributor(results, props, jsonMapper);
     }
 
     @Bean
@@ -111,8 +114,7 @@ public class TasdeeqAutoConfig {
     @ConditionalOnBean(DownstreamCertResults.class)
     @ConditionalOnEnabledHealthIndicator("downstream-certs")
     public DownstreamCertificateHealthContributor downstreamCertHealthContributor(DownstreamCertResults results,
-                                                                                  DownstreamCertTasdeeqProps props,
-                                                                                  JsonMapper jsonMapper) {
+                                                                                  DownstreamCertTasdeeqProps props) {
         return new DownstreamCertificateHealthContributor(results, props);
     }
 

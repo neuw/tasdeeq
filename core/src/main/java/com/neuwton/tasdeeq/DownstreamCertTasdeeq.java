@@ -1,6 +1,7 @@
 package com.neuwton.tasdeeq;
 
 import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
+import com.neuwton.tasdeeq.models.DownstreamCertResults;
 import com.neuwton.tasdeeq.models.DownstreamCertTasdeeqResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,10 +14,102 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class DownstreamCertTasdeeq {
 
     private static final Logger logger = LoggerFactory.getLogger(DownstreamCertTasdeeq.class);
+
+    /**
+     * Fetches certificates for multiple domains in parallel.
+     *
+     * @param domains map of domain configs (host, port, validateChain)
+     * @return DownstreamCertResults with all domain results
+     */
+    public static DownstreamCertResults tasdeeq(Map<String, DomainConfig> domains) {
+        return tasdeeq(domains, 30, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Fetches certificates for multiple domains in parallel with configurable timeout.
+     */
+    public static DownstreamCertResults tasdeeq(Map<String, DomainConfig> domains, long timeout, TimeUnit timeoutUnit) {
+        if (domains == null || domains.isEmpty()) {
+            DownstreamCertResults empty = new DownstreamCertResults();
+            empty.setResults(Collections.<DownstreamCertTasdeeqResult>emptyList());
+            return empty;
+        }
+
+        int poolSize = Math.min(domains.size(), Runtime.getRuntime().availableProcessors() * 2);
+        ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+
+        try {
+            List<Callable<DownstreamCertTasdeeqResult>> tasks = new ArrayList<>();
+            for (final Map.Entry<String, DomainConfig> entry : domains.entrySet()) {
+                final DomainConfig config = entry.getValue();
+                tasks.add(new Callable<DownstreamCertTasdeeqResult>() {
+                    public DownstreamCertTasdeeqResult call() {
+                        try {
+                            return tasdeeq(config.getHost(), config.getPort(), config.isValidateChain())
+                                    .setHost(config.getHost())
+                                    .setPort(config.getPort())
+                                    .setValidateChain(config.isValidateChain());
+                        } catch (CertificateValidationException e) {
+                            return new DownstreamCertTasdeeqResult()
+                                    .setHost(config.getHost())
+                                    .setPort(config.getPort())
+                                    .setValidateChain(config.isValidateChain())
+                                    .setTrusted(false)
+                                    .setConnectionError(e.getMessage());
+                        }
+                    }
+                });
+            }
+
+            List<Future<DownstreamCertTasdeeqResult>> futures = executor.invokeAll(tasks, timeout, timeoutUnit);
+
+            List<DownstreamCertTasdeeqResult> results = new ArrayList<DownstreamCertTasdeeqResult>();
+            for (Future<DownstreamCertTasdeeqResult> future : futures) {
+                try {
+                    results.add(future.get());
+                } catch (CancellationException e) {
+                    logger.error("Certificate fetch timed out");
+                    DownstreamCertTasdeeqResult timedOut = new DownstreamCertTasdeeqResult();
+                    timedOut.setConnectionError("Query timed out after " + timeout + " " + timeoutUnit);
+                    results.add(timedOut);
+                } catch (Exception e) {
+                    logger.error("Certificate fetch failed", e);
+                    DownstreamCertTasdeeqResult failed = new DownstreamCertTasdeeqResult();
+                    failed.setConnectionError("Unexpected error: " + e.getMessage());
+                    results.add(failed);
+                }
+            }
+
+            DownstreamCertResults certResults = new DownstreamCertResults();
+            certResults.setResults(results);
+            return certResults;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Certificate batch fetch interrupted", e);
+            DownstreamCertResults empty = new DownstreamCertResults();
+            empty.setResults(Collections.<DownstreamCertTasdeeqResult>emptyList());
+            return empty;
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                    if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                        logger.error("Executor did not terminate");
+                    }
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
     /**
      * Fetches the downstream server certificate with chain validation enabled by default.
@@ -52,6 +145,7 @@ public class DownstreamCertTasdeeq {
             // Strict mode: fail hard if validation fails
             try {
                 result.setDownstreamCertChain(fetchCertificates(hostName, port));
+                result.setTrusted(true);
             } catch (IOException e) {
                 result.setTrusted(false);
                 logger.error("Certificate validation failed for {}:{}", hostName, port, e);
@@ -63,6 +157,7 @@ public class DownstreamCertTasdeeq {
             try {
                 logger.info("Attempting the fetching of certificate details with validation 'ON' first for {}:{}", hostName, port);
                 result.setDownstreamCertChain(fetchCertificates(hostName, port));
+                result.setTrusted(true);
             } catch (IOException e) {
                 logger.error("Validation failed for {}:{}, retrying next without chain validation: {}",
                         hostName, port, e.getMessage());
@@ -81,12 +176,14 @@ public class DownstreamCertTasdeeq {
         logger.info("Fetching certificate with validation enabled");
         SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
 
-        try (SSLSocket socket = (SSLSocket) factory.createSocket(hostname, port)) {
+        SSLSocket socket = null;
+        try {
+            socket = (SSLSocket) factory.createSocket(hostname, port);
             socket.startHandshake();
             SSLSession session = socket.getSession();
 
             Certificate[] certs = session.getPeerCertificates();
-            List<X509Certificate> x509Certs = new ArrayList<>();
+            List<X509Certificate> x509Certs = new ArrayList<X509Certificate>();
 
             logger.info("Retrieved {} certificate(s) in chain", certs.length);
 
@@ -101,6 +198,13 @@ public class DownstreamCertTasdeeq {
 
             // well it will be ordered 99.999999% of the times :-), just being extra sure.
             return orderChain(x509Certs);
+        } finally {
+            if (socket != null) {
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                }
+            }
         }
     }
 
@@ -150,12 +254,14 @@ public class DownstreamCertTasdeeq {
             disableCertificateValidation();
 
             SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-            try (SSLSocket socket = (SSLSocket) factory.createSocket(hostname, port)) {
+            SSLSocket socket = null;
+            try {
+                socket = (SSLSocket) factory.createSocket(hostname, port);
                 socket.startHandshake();
                 SSLSession session = socket.getSession();
 
                 Certificate[] certs = session.getPeerCertificates();
-                List<X509Certificate> x509Certs = new ArrayList<>();
+                List<X509Certificate> x509Certs = new ArrayList<X509Certificate>();
 
                 logger.info("Retrieved {} certificate(s) in chain", certs.length);
 
@@ -168,6 +274,13 @@ public class DownstreamCertTasdeeq {
                 }
 
                 return orderChain(x509Certs);
+            } finally {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException ignored) {
+                    }
+                }
             }
         } catch (Exception e) {
             logger.error("Failed to fetch certificate even without validation", e);
@@ -184,8 +297,8 @@ public class DownstreamCertTasdeeq {
     }
 
     private static List<X509Certificate> orderChain(List<X509Certificate> certs) {
-        Map<Principal, X509Certificate> bySubject = new HashMap<>();
-        Set<Principal> issuers = new HashSet<>();
+        Map<Principal, X509Certificate> bySubject = new HashMap<Principal, X509Certificate>();
+        Set<Principal> issuers = new HashSet<Principal>();
 
         for (X509Certificate cert : certs) {
             bySubject.put(cert.getSubjectX500Principal(), cert);
@@ -197,15 +310,22 @@ public class DownstreamCertTasdeeq {
             return new ArrayList<>(certs);
         }
 
-        X509Certificate leaf = certs.stream()
-                .filter(c -> !c.getSubjectX500Principal().equals(c.getIssuerX500Principal()))
-                .filter(c -> !issuers.contains(c.getSubjectX500Principal()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Cannot find leaf certificate"));
+        X509Certificate leaf = null;
+        for (X509Certificate c : certs) {
+            if (!c.getSubjectX500Principal().equals(c.getIssuerX500Principal())
+                    && !issuers.contains(c.getSubjectX500Principal())) {
+                leaf = c;
+                break;
+            }
+        }
 
-        List<X509Certificate> ordered = new ArrayList<>();
+        if (leaf == null) {
+            throw new IllegalArgumentException("Cannot find leaf certificate");
+        }
+
+        List<X509Certificate> ordered = new ArrayList<X509Certificate>();
         X509Certificate current = leaf;
-        Set<Principal> visited = new HashSet<>();
+        Set<Principal> visited = new HashSet<Principal>();
 
         while (current != null && visited.add(current.getSubjectX500Principal())) {
             ordered.add(current);
@@ -235,7 +355,11 @@ public class DownstreamCertTasdeeq {
         SSLContext.setDefault(sc);
         HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
 
-        HostnameVerifier allHostsValid = (hostname, session) -> true;
+        HostnameVerifier allHostsValid = new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+        };
         HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
     }
 
@@ -265,7 +389,6 @@ public class DownstreamCertTasdeeq {
 
         X509TrustManager combinedTm = new X509TrustManager() {
 
-            @Override
             public void checkClientTrusted(X509Certificate[] chain, String authType)
                     throws CertificateException {
                 try {
@@ -275,7 +398,6 @@ public class DownstreamCertTasdeeq {
                 }
             }
 
-            @Override
             public void checkServerTrusted(X509Certificate[] chain, String authType)
                     throws CertificateException {
                 try {
@@ -285,7 +407,6 @@ public class DownstreamCertTasdeeq {
                 }
             }
 
-            @Override
             public X509Certificate[] getAcceptedIssuers() {
                 X509Certificate[] defaultIssuers = defaultTm.getAcceptedIssuers();
                 X509Certificate[] customIssuers  = customTm.getAcceptedIssuers();
@@ -312,7 +433,7 @@ public class DownstreamCertTasdeeq {
             SSLSocketFactory originalSocketFactory,
             HostnameVerifier originalHostnameVerifier) throws NoSuchAlgorithmException, KeyManagementException {
 
-        logger.debug("Re-enabling certificate validation");
+        logger.info("Re-enabling certificate validation");
 
         // Restore original settings
         HttpsURLConnection.setDefaultSSLSocketFactory(originalSocketFactory);
@@ -334,7 +455,7 @@ public class DownstreamCertTasdeeq {
         return "LEAF [End-Entity]";
     }
 
-    private static final Map<String, String> EKU_DESCRIPTIONS = new HashMap<>();
+    private static final Map<String, String> EKU_DESCRIPTIONS = new HashMap<String, String>();
 
     static {
         EKU_DESCRIPTIONS.put("1.3.6.1.5.5.7.3.1", "TLS Web Server Authentication");
@@ -357,7 +478,9 @@ public class DownstreamCertTasdeeq {
 
         if (ekuOIDs != null) {
             for (String oid : ekuOIDs) {
-                String usage = EKU_DESCRIPTIONS.getOrDefault(oid, "Unknown (" + oid + ")");
+                String usage = EKU_DESCRIPTIONS.containsKey(oid)
+                        ? EKU_DESCRIPTIONS.get(oid)
+                        : "Unknown (" + oid + ")";
                 result.append(" [").append(usage).append("]");
             }
         } else {
@@ -375,5 +498,24 @@ public class DownstreamCertTasdeeq {
             logger.trace("Certificate {} is not self-signed", cert.getSubjectX500Principal().getName());
             return false;
         }
+    }
+
+    /**
+     * Simple holder for domain configuration
+     */
+    public static class DomainConfig {
+        private final String host;
+        private final int port;
+        private final boolean validateChain;
+
+        public DomainConfig(String host, int port, boolean validateChain) {
+            this.host = host;
+            this.port = port;
+            this.validateChain = validateChain;
+        }
+
+        public String getHost() { return host; }
+        public int getPort() { return port; }
+        public boolean isValidateChain() { return validateChain; }
     }
 }
