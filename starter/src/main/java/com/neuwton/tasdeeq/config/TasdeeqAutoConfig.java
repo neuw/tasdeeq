@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static com.neuwton.tasdeeq.utils.TasdeeqStarterConstants.*;
+
 @AutoConfiguration
 @EnableConfigurationProperties({
     JVMTasdeeqProps.class, DNSTasdeeqProps.class,
@@ -37,7 +39,7 @@ import java.util.List;
 public class TasdeeqAutoConfig {
 
     @Bean
-    @ConditionalOnProperty(prefix = "neuwton.tasdeeq.jvm", name = "enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = NEUWTON_TASDEEQ_JVM_PREFIX, name = ENABLED, havingValue = "true", matchIfMissing = true)
     public JVMTasdeeqResult jvmTasdeeqResult() throws IOException {
         return JVMTasdeeq.tasdeeq();
     }
@@ -49,7 +51,7 @@ public class TasdeeqAutoConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "neuwton.tasdeeq.ca", name = "enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = NEUWTON_TASDEEQ_CA_PREFIX, name = ENABLED, havingValue = "true", matchIfMissing = true)
     public CertificateAuthorityTasdeeqResult certificateAuthorityTasdeeqResult() {
         return CertificateAuthorityTasdeeq.tasdeeq();
     }
@@ -61,14 +63,14 @@ public class TasdeeqAutoConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "neuwton.tasdeeq.dns", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = NEUWTON_TASDEEQ_DNS_PREFIX, name = ENABLED, havingValue = "true")
     public DNSTasdeeqResults dnsTasdeeqResults(DNSTasdeeqProps props) {
         return DNSTasdeeq.tasdeeq(
                 props.getDomains(),
                 props.getRecords().toArray(String[]::new));
     }
 
-    @Bean("dns")
+    @Bean
     @ConditionalOnBean(DNSTasdeeqResults.class)
     @ConditionalOnEnabledHealthIndicator("dns-details")
     public DNSTasdeeqInfoContributor dnsTasdeeqContributor(DNSTasdeeqResults results,
@@ -79,7 +81,7 @@ public class TasdeeqAutoConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "neuwton.tasdeeq.cert", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = NEUWTON_TASDEEQ_CERT_PREFIX, name = ENABLED, havingValue = "true")
     public DownstreamCertResults downstreamCertTasdeeqResults(DownstreamCertTasdeeqProps props) {
         DownstreamCertResults downstreamCertResults = new DownstreamCertResults();
         if (!CollectionUtils.isEmpty(props.getDomains())) {
@@ -108,7 +110,7 @@ public class TasdeeqAutoConfig {
         return downstreamCertResults;
     }
 
-    @Bean("downstream-certs")
+    @Bean
     @ConditionalOnBean(DownstreamCertResults.class)
     @ConditionalOnEnabledHealthIndicator("downstream-certs")
     public DownstreamCertificateHealthContributor downstreamCertHealthContributor(DownstreamCertResults results,

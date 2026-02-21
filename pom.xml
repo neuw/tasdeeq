@@ -29,8 +29,8 @@
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <slf4j.api.version>2.0.17</slf4j.api.version>
-    <spring-boot.version>4.0.2</spring-boot.version>
-    <jacoco.version>0.8.10</jacoco.version>
+    <spring-boot.version>4.0.3</spring-boot.version>
+    <jacoco.version>0.8.13</jacoco.version>
     <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
     <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
     <build.date>${maven.build.timestamp}</build.date>
@@ -163,7 +163,7 @@
       <plugin>
         <groupId>org.sonatype.central</groupId>
         <artifactId>central-publishing-maven-plugin</artifactId>
-        <version>0.7.0</version>
+        <version>0.10.0</version>
         <extensions>true</extensions>
         <configuration>
           <autoPublish>true</autoPublish>

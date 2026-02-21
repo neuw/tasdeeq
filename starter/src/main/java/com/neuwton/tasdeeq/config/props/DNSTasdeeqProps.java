@@ -5,7 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.ArrayList;
 import java.util.List;
 
-@ConfigurationProperties(prefix = "neuwton.tasdeeq.dns")
+import static com.neuwton.tasdeeq.utils.TasdeeqStarterConstants.NEUWTON_TASDEEQ_DNS_PREFIX;
+
+@ConfigurationProperties(prefix = NEUWTON_TASDEEQ_DNS_PREFIX)
 public class DNSTasdeeqProps {
 
     private boolean enabled = true;

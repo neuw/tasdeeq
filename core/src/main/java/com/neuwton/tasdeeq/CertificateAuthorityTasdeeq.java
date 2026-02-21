@@ -72,7 +72,7 @@ public class CertificateAuthorityTasdeeq {
                     } else {
                         sb.append("] Certificate Type: LEAF");
                     }
-                    logger.info(sb.toString());
+                    logger.debug(sb.toString());
                 }
             }
         }
