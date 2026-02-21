@@ -16,7 +16,6 @@ import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
 import com.neuwton.tasdeeq.models.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
@@ -29,7 +28,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @AutoConfiguration
 @EnableConfigurationProperties({
