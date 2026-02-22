@@ -63,8 +63,8 @@ public class DNSTasdeeqInfoContributor implements InfoContributor {
         
         dnsInfo.put("domains", domainMap);
         dnsInfo.put("fetchedAt", this.results.getInstant().toString());
-        dnsInfo.put("nextRefreshAfter", this.results.getInstant()
-                .plusSeconds(props.getCacheTtlSeconds()).toString());
+        dnsInfo.put("nextRefreshAllowedAfter", this.results.getInstant()
+                .plusSeconds(props.getCacheTtlSeconds()));
         
         builder.withDetail("dns-records", dnsInfo);
     }

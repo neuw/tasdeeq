@@ -126,8 +126,7 @@ public class DownstreamCertificateHealthContributor implements HealthIndicator {
         }
 
         builder.withDetail("lastFetched", results.getInstant().toString());
-        builder.withDetail("nextRefreshAfter", results.getInstant()
-                .plusSeconds(props.getCacheTtlSeconds()).toString());
+        builder.withDetail("nextRefreshAllowedAfter", results.getInstant().plusSeconds(props.getCacheTtlSeconds()));
 
         return builder.build();
     }
