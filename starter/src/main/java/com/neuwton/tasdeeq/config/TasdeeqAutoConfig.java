@@ -20,7 +20,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.util.CollectionUtils;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -75,8 +74,7 @@ public class TasdeeqAutoConfig {
     @ConditionalOnEnabledHealthIndicator("dns-details")
     public DNSTasdeeqInfoContributor dnsTasdeeqContributor(DNSTasdeeqResults results,
                                                            DNSTasdeeqProps props,
-                                                           JsonMapper jsonMapper,
-                                                           ApplicationEventMulticaster eventMulticaster) {
+                                                           JsonMapper jsonMapper) {
         return new DNSTasdeeqInfoContributor(results, props, jsonMapper);
     }
 

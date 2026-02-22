@@ -37,7 +37,11 @@ public class CertChainGeneratorUtil {
     public static final String CA_REPOSITORY_URL = "http://localhost:8080";
 
     public static KeyStore generateFullChainKeyStoreJKS(String path) throws Exception {
-        return generateKeyStoreFullChain("RSA", path);
+        return generateFullChainKeyStoreJKS(path, 365); // 1 year expiry
+    }
+
+    public static KeyStore generateFullChainKeyStoreJKS(String path, int expiry) throws Exception {
+        return generateKeyStoreFullChain("RSA", path, expiry);
     }
 
     public static KeyStore generateRootSignedCertKeyStoreJKS(String path) throws Exception {
@@ -48,7 +52,7 @@ public class CertChainGeneratorUtil {
         return generateKeyStoreSelfSigned("RSA", path);
     }
 
-    public static KeyStore generateKeyStoreFullChain(String algorithm, String path) throws Exception {
+    public static KeyStore generateKeyStoreFullChain(String algorithm, String path, int expiredBy) throws Exception {
         KeyPair leafCertKeyPair = generateKeyPair("RSA", 4096);
         String prefix = algorithm.toLowerCase();
 
@@ -80,7 +84,7 @@ public class CertChainGeneratorUtil {
                 intermediateKeyPair.getPrivate(),
                 algorithm,
                 CA_REPOSITORY_URL + intermediateCertFilename,  // AIA pointing to intermediate CA
-                false
+                expiredBy
         );
 
         return generateKeystoreFile("localhost", CHANGE_IT.toCharArray(), leafCertKeyPair.getPrivate(), path, serverCert, intermediateCACert, rootCACert);
@@ -104,7 +108,7 @@ public class CertChainGeneratorUtil {
                 rootKeyPair.getPrivate(),
                 algorithm,
                 CA_REPOSITORY_URL + rootCertFilename,  // AIA pointing to intermediate CA
-                false
+                365
         );
 
         return generateKeystoreFile("localhost", CHANGE_IT.toCharArray(), leafCertKeyPair.getPrivate(), path, serverCert, rootCACert);
@@ -151,7 +155,7 @@ public class CertChainGeneratorUtil {
                 intermediateKeyPair.getPrivate(),
                 algorithm,
                 CA_REPOSITORY_URL + intermediateCertFilename,  // AIA pointing to intermediate CA
-                false
+                365
         );
 
         // Create a combined PEM file with server cert + intermediate CA + root CA
@@ -498,14 +502,14 @@ public class CertChainGeneratorUtil {
             PrivateKey issuerPrivateKey,
             String algorithm,
             String issuerCertUrl,  // URL where the issuer cert can be downloaded
-            boolean expired) throws Exception {
+            int expiredBy) throws Exception {
 
         // Certificate validity
         Date startDate = new Date(System.currentTimeMillis() - 86400000L);
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(startDate);
-        if (expired) {
-            calendar.add(Calendar.DATE, -1);
+        if (expiredBy < 100) {
+            calendar.add(Calendar.DATE, expiredBy);
         } else {
             calendar.add(Calendar.DAY_OF_YEAR, 365);
         }
