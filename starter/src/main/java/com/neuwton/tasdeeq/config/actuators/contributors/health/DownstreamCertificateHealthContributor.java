@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 public class DownstreamCertificateHealthContributor implements HealthIndicator {
 
-    private static final long EXPIRY_WARNING_THRESHOLD_MS = 90L * 24 * 60 * 60 * 1000;
+    private static final long EXPIRY_WARNING_THRESHOLD_MS = 45L * 24 * 60 * 60 * 1000;
     private static final long EXPIRY_CRITICAL_THRESHOLD_MS = 15L * 24 * 60 * 60 * 1000;
 
     private volatile DownstreamCertResults results;
@@ -97,10 +97,13 @@ public class DownstreamCertificateHealthContributor implements HealthIndicator {
 
         boolean isWarn = !isDown && (!expiringSoonCerts.isEmpty() || !untrusted.isEmpty());
 
-
         Health.Builder builder = isDown ? Health.down()
                 : isWarn ? Health.status("WARN")
                 : Health.up();
+
+        if (isWarn) {
+            builder.withDetail("warningReason", "some certificates are expiring soon, or untrusted");
+        }
 
         if (!connectionFailures.isEmpty()) {
             builder.withDetail("connectionFailures", connectionFailures.stream()

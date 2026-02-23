@@ -73,6 +73,12 @@ public class DownstreamCertTasdeeqTests {
     }
 
     @Test
+    public void testDownstreamCertMultipleHostBlankConfig() {
+        Map<String, DownstreamCertTasdeeq.DomainConfig> domains = new HashMap<>();
+        assertTrue(DownstreamCertTasdeeq.tasdeeq(domains).getResults().isEmpty());
+    }
+
+    @Test
     public void testDownstreamCertByPort() throws NoSuchAlgorithmException, KeyManagementException {
         assertNotNull(DownstreamCertTasdeeq.tasdeeq("google.com", 443));
     }
