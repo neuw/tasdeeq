@@ -20,7 +20,9 @@ import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.security.cert.X509Certificate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.neuwton.utils.CertChainGeneratorUtil.*;
@@ -59,6 +61,15 @@ public class DownstreamCertTasdeeqTests {
     @Test
     public void testDownstreamCert() throws NoSuchAlgorithmException, KeyManagementException {
         assertNotNull(DownstreamCertTasdeeq.tasdeeq("google.com"));
+    }
+
+    @Test
+    public void testDownstreamCertMultipleHost() {
+        Map<String, DownstreamCertTasdeeq.DomainConfig> domains = new HashMap<>();
+        domains.put("google.com", new DownstreamCertTasdeeq.DomainConfig("google.com"));
+        domains.put("github.com", new DownstreamCertTasdeeq.DomainConfig("github.com", true));
+        domains.put("google.co.in", new DownstreamCertTasdeeq.DomainConfig("google.co.in", 443, true));
+        assertNotNull(DownstreamCertTasdeeq.tasdeeq(domains));
     }
 
     @Test

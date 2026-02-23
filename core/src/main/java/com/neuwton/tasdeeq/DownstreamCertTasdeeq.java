@@ -508,6 +508,18 @@ public class DownstreamCertTasdeeq {
         private final int port;
         private final boolean validateChain;
 
+        public DomainConfig(String host) {
+            this.host = host;
+            this.port = 443;
+            this.validateChain = true;
+        }
+
+        public DomainConfig(String host, boolean validateChain) {
+            this.host = host;
+            this.port = 443;
+            this.validateChain = validateChain;
+        }
+
         public DomainConfig(String host, int port, boolean validateChain) {
             this.host = host;
             this.port = port;
