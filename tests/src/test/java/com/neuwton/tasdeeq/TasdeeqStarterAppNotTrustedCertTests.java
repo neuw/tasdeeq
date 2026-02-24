@@ -23,14 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = {
-        "neuwton.tasdeeq.ca.enabled=true",
-        "neuwton.tasdeeq.dns.enabled=true",
-        "neuwton.tasdeeq.cert.enabled=true",
-        "neuwton.tasdeeq.cert.domains.localhost.host=localhost",
-        "neuwton.tasdeeq.cert.domains.localhost.port=19494",
-        "neuwton.tasdeeq.cert.domains.localhost.validate-chain=true",
-        "neuwton.tasdeeq.dns.domains=google.com,github.com",
-        "neuwton.tasdeeq.dns.records=A,AAAA,CNAME,TXT",
+        "tasdeeq.ca.enabled=true",
+        "tasdeeq.dns.enabled=true",
+        "tasdeeq.cert.enabled=true",
+        "tasdeeq.cert.domains.localhost.host=localhost",
+        "tasdeeq.cert.domains.localhost.port=19494",
+        "tasdeeq.cert.domains.localhost.validate-chain=true",
+        "tasdeeq.dns.domains=google.com,github.com",
+        "tasdeeq.dns.records=A,AAAA,CNAME,TXT",
         "management.endpoints.web.exposure.include=*",
         "management.info.java.enabled=true",
         "management.endpoint.health.show-components=always",
