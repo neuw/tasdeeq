@@ -52,6 +52,7 @@ public class DownstreamCertTasdeeqProps {
         private String host;
         private int port = 443;
         private boolean validateChain = true;
+        private String base64EncodedChain;
 
         public String getHost() {
             return host;
@@ -73,8 +74,21 @@ public class DownstreamCertTasdeeqProps {
             return validateChain;
         }
 
+        public boolean validateChain() {
+            return isValidateChain();
+        }
+
         public void setValidateChain(boolean validateChain) {
             this.validateChain = validateChain;
+        }
+
+        public String getBase64EncodedChain() {
+            return base64EncodedChain;
+        }
+
+        public DomainProps setBase64EncodedChain(String base64EncodedChain) {
+            this.base64EncodedChain = base64EncodedChain;
+            return this;
         }
     }
 }

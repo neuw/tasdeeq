@@ -91,7 +91,7 @@ public class CertificateAuthorityContributor implements InfoContributor {
 
     private String resolveBasicConstraints(int value) {
         if (value == Integer.MAX_VALUE) return "unlimited";
-        if (value == -1) return "not-a-ca";
+        if (value == -1) return "not-applicable-not-a-CA";
         return "max-path-length:" + value;
     }
 }

@@ -3,16 +3,17 @@ package com.neuwton.tasdeeq;
 import com.neuwton.tasdeeq.exceptions.CertificateValidationException;
 import com.neuwton.tasdeeq.models.DownstreamCertResults;
 import com.neuwton.tasdeeq.models.DownstreamCertTasdeeqResult;
+import com.neuwton.tasdeeq.models.X509CertificateChain;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.*;
+import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateParsingException;
-import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -208,6 +209,29 @@ public class DownstreamCertTasdeeq {
         }
     }
 
+    public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port, String base64EncodedChain) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, KeyManagementException, SignatureException, NoSuchProviderException, InvalidKeyException {
+        logger.info("Fetching certificate for {}:{} (with custom CA chain)", hostName, port);
+
+        DownstreamCertTasdeeqResult result = new DownstreamCertTasdeeqResult();
+        List<X509Certificate> trustChainCerts = extractTrustCertificates(base64EncodedChain);
+
+        try {
+            logger.info("Attempting the fetching of certificate details with custom chain first for {}:{}", hostName, port);
+            result.setDownstreamCertChain(fetchCertificates(hostName, port, trustChainCerts.toArray(new X509Certificate[0])));
+            result.setTrusted(true);
+        } catch (IOException e) {
+            logger.error("Validation failed for {}:{}, with custom chain validation: {}",
+                    hostName, port, e.getMessage());
+            result.setTrusted(false);
+            result.setConnectionError("Failed to fetch certificate for " + hostName + ":" + port + " with custom CA chain");
+        }
+        return result;
+    }
+
+    public static List<X509Certificate> fetchCertificates(String hostname, int port, X509Certificate... additionalCAs) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, KeyManagementException {
+        return getDownstreamCertWithCustomTruststore(hostname, port, additionalCAs);
+    }
+
     /**
      * Fetches with custom truststore.
      */
@@ -375,11 +399,7 @@ public class DownstreamCertTasdeeq {
         }
 
         X509Certificate x509Certificate = (X509Certificate)customTrustStore.getCertificate("custom-root-"+0);
-        x509Certificate.checkValidity();
         System.out.println("x509Certificate.getIssuerX500Principal().getName() --> " +x509Certificate.getIssuerX500Principal().getName());
-        X509Certificate x509Certificate1 = (X509Certificate)customTrustStore.getCertificate("custom-root-"+1);
-        x509Certificate1.checkValidity();
-        System.out.println("x509Certificate.getIssuerX500Principal().getName() --> " +x509Certificate1.getIssuerX500Principal().getName());
 
         TrustManagerFactory customTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         customTmf.init(customTrustStore);
@@ -498,6 +518,42 @@ public class DownstreamCertTasdeeq {
             logger.trace("Certificate {} is not self-signed", cert.getSubjectX500Principal().getName());
             return false;
         }
+    }
+
+    public static List<X509Certificate> extractTrustCertificates(final String base64EncodedCert) throws CertificateException, NoSuchProviderException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+        Security.addProvider(new BouncyCastleProvider());
+        CertificateFactory cf = CertificateFactory.getInstance("X.509", "BC");
+        // Decode the Base64 ONCE to get the original PEM content
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedCert));
+
+        List<X509Certificate> certificates = new ArrayList<>();
+
+        X509CertificateChain x509CertificateChain = new X509CertificateChain();
+        x509CertificateChain.setBase64EncodedCertificate(base64EncodedCert);
+        for (Certificate cert : cf.generateCertificates(inputStream)) {
+            X509Certificate x509Cert = (X509Certificate) cert;
+            if(isRootCA(x509Cert)) {
+                logger.info("root CA expires at, {}", x509Cert.getNotAfter());
+                x509CertificateChain.setRootCACertificate(x509Cert);
+            } else if (ifX509CertIsCA(x509Cert)){ // for intermediate CA
+                logger.info("intermediate CA expires at, {}", x509Cert.getNotAfter());
+                x509CertificateChain.setIntermediateCACertificate((X509Certificate) cert);
+            }
+            // else ignore leaf certificates - they are not needed for trust.
+            certificates.add((X509Certificate) cert);
+        }
+
+        return certificates;
+    }
+
+    public static boolean isRootCA(final X509Certificate cert) throws CertificateException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, NoSuchProviderException {
+        cert.verify(cert.getPublicKey());
+        logger.info("this is root CA");
+        return true;
+    }
+
+    public static boolean ifX509CertIsCA(final X509Certificate cert) {
+        return cert.getBasicConstraints()!=-1 && cert.getKeyUsage()[5];
     }
 
     /**

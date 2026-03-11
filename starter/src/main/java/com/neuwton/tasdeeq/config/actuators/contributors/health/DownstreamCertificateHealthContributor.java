@@ -8,7 +8,11 @@ import com.neuwton.tasdeeq.models.DownstreamCertTasdeeqResult;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.*;
@@ -173,7 +177,7 @@ public class DownstreamCertificateHealthContributor implements HealthIndicator {
         // Basic constraints
         int basicConstraints = cert.getBasicConstraints();
         if (basicConstraints == -1) {
-            certInfo.put("basicConstraints", "not-a-ca");
+            certInfo.put("basicConstraints", "not-applicable-not-a-CA");
         } else if (basicConstraints == Integer.MAX_VALUE) {
             certInfo.put("basicConstraints", "unlimited");
         } else {
@@ -197,12 +201,22 @@ public class DownstreamCertificateHealthContributor implements HealthIndicator {
         List<DownstreamCertTasdeeqResult> results = new ArrayList<>();
         props.getDomains().forEach((k, v) -> {
             try {
-                DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
-                        v.getHost(), v.getPort(), v.isValidateChain());
-                result.setHost(v.getHost())
-                        .setPort(v.getPort())
-                        .setValidateChain(v.isValidateChain());
-                results.add(result);
+                if (v.validateChain() && StringUtils.hasText(v.getBase64EncodedChain())) {
+                    DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
+                            v.getHost(), v.getPort(), v.getBase64EncodedChain());
+                    result.setHost(v.getHost())
+                            .setPort(v.getPort())
+                            .setTrustChain(result.getTrustChain())
+                            .setValidateChain(v.validateChain());
+                    results.add(result);
+                } else {
+                    DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
+                            v.getHost(), v.getPort(), v.validateChain());
+                    result.setHost(v.getHost())
+                            .setPort(v.getPort())
+                            .setValidateChain(v.validateChain());
+                    results.add(result);
+                }
             } catch (CertificateValidationException e) {
                 results.add(new DownstreamCertTasdeeqResult()
                         .setHost(v.getHost())
@@ -210,6 +224,22 @@ public class DownstreamCertificateHealthContributor implements HealthIndicator {
                         .setValidateChain(v.isValidateChain())
                         .setTrusted(false)
                         .setConnectionError(e.getMessage()));
+            } catch (CertificateException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            } catch (KeyStoreException e) {
+                throw new RuntimeException(e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (SignatureException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchProviderException e) {
+                throw new RuntimeException(e);
+            } catch (InvalidKeyException e) {
+                throw new RuntimeException(e);
+            } catch (KeyManagementException e) {
+                throw new RuntimeException(e);
             }
         });
         downstreamCertResults.setResults(results);

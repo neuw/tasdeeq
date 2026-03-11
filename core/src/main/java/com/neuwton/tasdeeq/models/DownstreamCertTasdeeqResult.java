@@ -8,6 +8,7 @@ public class DownstreamCertTasdeeqResult {
     private String host;
     private int port;
     private boolean validateChain;
+    private List<X509Certificate> trustChain;
     private List<X509Certificate> downstreamCertChain;
     private boolean isTrusted;
     private String connectionError;
@@ -29,4 +30,13 @@ public class DownstreamCertTasdeeqResult {
 
     public String getConnectionError() { return connectionError; }
     public DownstreamCertTasdeeqResult setConnectionError(String connectionError) { this.connectionError = connectionError; return this; }
+
+    public List<X509Certificate> getTrustChain() {
+        return trustChain;
+    }
+
+    public DownstreamCertTasdeeqResult setTrustChain(List<X509Certificate> trustChain) {
+        this.trustChain = trustChain;
+        return this;
+    }
 }

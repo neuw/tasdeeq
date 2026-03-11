@@ -21,9 +21,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -86,13 +89,23 @@ public class TasdeeqAutoConfig {
             List<DownstreamCertTasdeeqResult> results = new ArrayList<>();
             props.getDomains().forEach((k, v) -> {
                 try {
-                    DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
-                            v.getHost(), v.getPort(), v.isValidateChain());
-                    result.setHost(v.getHost())
-                            .setPort(v.getPort())
-                            .setValidateChain(v.isValidateChain());
-                    results.add(result);
-                } catch (CertificateValidationException e) {
+                    if (v.validateChain() && StringUtils.hasText(v.getBase64EncodedChain())) {
+                        DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
+                                v.getHost(), v.getPort(), v.getBase64EncodedChain());
+                        result.setHost(v.getHost())
+                                .setPort(v.getPort())
+                                .setTrustChain(result.getTrustChain())
+                                .setValidateChain(v.validateChain());
+                        results.add(result);
+                    } else {
+                        DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
+                                v.getHost(), v.getPort(), v.validateChain());
+                        result.setHost(v.getHost())
+                                .setPort(v.getPort())
+                                .setValidateChain(v.validateChain());
+                        results.add(result);
+                    }
+                } catch (CertificateValidationException | CertificateException | NoSuchAlgorithmException | KeyStoreException | IOException | SignatureException | NoSuchProviderException | InvalidKeyException | KeyManagementException e) {
                     results.add(new DownstreamCertTasdeeqResult()
                             .setHost(v.getHost())
                             .setPort(v.getPort())
