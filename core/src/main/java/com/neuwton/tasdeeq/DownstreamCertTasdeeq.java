@@ -443,9 +443,9 @@ public class DownstreamCertTasdeeq {
         SSLContext.setDefault(sc);
         HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
         // Diagnostic — print what customTm sees
-        System.out.println("Custom TM accepted issuers count: " + customTm.getAcceptedIssuers().length);
+        logger.info("Custom Trust Manager --> accepted issuers count: {}", customTm.getAcceptedIssuers().length);
         for (X509Certificate issuer : customTm.getAcceptedIssuers()) {
-            System.out.println("  Custom trusted: " + issuer.getSubjectX500Principal().getName());
+            logger.info("--> Custom trusted: {}", issuer.getSubjectX500Principal().getName());
         }
     }
 
