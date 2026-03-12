@@ -395,11 +395,9 @@ public class DownstreamCertTasdeeq {
         KeyStore customTrustStore = KeyStore.getInstance("PKCS12");
         customTrustStore.load(null, null);
         for (int i = 0; i < additionalCAs.length; i++) {
-            customTrustStore.setCertificateEntry("custom-root-" + i, additionalCAs[i]);
+            customTrustStore.setCertificateEntry(additionalCAs[i].getSubjectX500Principal().getName() + "-custom-ca", additionalCAs[i]);
+            logger.info("x509Certificate with CN {} and issuer {} added to the trust manager(store)", additionalCAs[i].getSubjectX500Principal().getName(), additionalCAs[i].getIssuerX500Principal().getName());
         }
-
-        X509Certificate x509Certificate = (X509Certificate)customTrustStore.getCertificate("custom-root-"+0);
-        System.out.println("x509Certificate.getIssuerX500Principal().getName() --> " +x509Certificate.getIssuerX500Principal().getName());
 
         TrustManagerFactory customTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         customTmf.init(customTrustStore);
