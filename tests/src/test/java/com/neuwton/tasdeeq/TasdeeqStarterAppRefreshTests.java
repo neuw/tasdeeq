@@ -64,7 +64,7 @@ public class TasdeeqStarterAppRefreshTests {
 
     @Test
     @DirtiesContext
-    void contextLoadTest() throws InterruptedException {
+    void actuatorTest() throws InterruptedException {
         assertEquals(CertificateAuthorityTasdeeqProps.class, certificateAuthorityTasdeeqProps.getClass());
         restTestClient.get().uri("/actuator/info").exchange().expectStatus().isOk();
         Thread.sleep(4000);
@@ -74,7 +74,7 @@ public class TasdeeqStarterAppRefreshTests {
                 .expectBody()
                 .jsonPath("status")
                 .isEqualTo("UP");
-        Thread.sleep(4000);
+        Thread.sleep(4000); // sleeping to validate actuator health status after cache refresh
         restTestClient.get().uri("/actuator/health")
                 .exchange()
                 .expectBody()

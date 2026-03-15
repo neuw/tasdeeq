@@ -12,7 +12,6 @@ public class DownstreamCertTasdeeqProps {
     private boolean enabled = true;
     private int cacheTtlSeconds = 3600;
     private Map<String, DomainProps> domains = Map.of();
-    private boolean strictChainValidation = true;
 
     public boolean isEnabled() {
         return enabled;
@@ -28,14 +27,6 @@ public class DownstreamCertTasdeeqProps {
 
     public void setDomains(Map<String, DomainProps> domains) {
         this.domains = domains;
-    }
-
-    public boolean isStrictChainValidation() {
-        return strictChainValidation;
-    }
-
-    public void setStrictChainValidation(boolean strictChainValidation) {
-        this.strictChainValidation = strictChainValidation;
     }
 
     public int getCacheTtlSeconds() {

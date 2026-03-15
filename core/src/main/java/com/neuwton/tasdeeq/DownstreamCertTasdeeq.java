@@ -210,6 +210,10 @@ public class DownstreamCertTasdeeq {
     }
 
     public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port, String base64EncodedChain) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, KeyManagementException, SignatureException, NoSuchProviderException, InvalidKeyException {
+        return tasdeeq(hostName, port, true, base64EncodedChain);
+    }
+
+    public static DownstreamCertTasdeeqResult tasdeeq(String hostName, int port, boolean validateChain, String base64EncodedChain) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, KeyManagementException, SignatureException, NoSuchProviderException, InvalidKeyException {
         logger.info("Fetching certificate for {}:{} (with custom CA chain)", hostName, port);
 
         DownstreamCertTasdeeqResult result = new DownstreamCertTasdeeqResult();
@@ -217,7 +221,7 @@ public class DownstreamCertTasdeeq {
 
         try {
             logger.info("Attempting the fetching of certificate details with custom chain first for {}:{}", hostName, port);
-            result.setDownstreamCertChain(fetchCertificates(hostName, port, trustChainCerts.toArray(new X509Certificate[0])));
+            result.setDownstreamCertChain(fetchCertificates(hostName, port, validateChain, trustChainCerts.toArray(new X509Certificate[0])));
             result.setTrusted(true);
         } catch (IOException e) {
             logger.error("Validation failed for {}:{}, with custom chain validation: {}",
@@ -229,14 +233,18 @@ public class DownstreamCertTasdeeq {
     }
 
     public static List<X509Certificate> fetchCertificates(String hostname, int port, X509Certificate... additionalCAs) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, KeyManagementException {
-        return getDownstreamCertWithCustomTruststore(hostname, port, additionalCAs);
+        return fetchCertificates(hostname, port, true, additionalCAs);
+    }
+
+    public static List<X509Certificate> fetchCertificates(String hostname, int port, boolean validateChain, X509Certificate... additionalCAs) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, KeyManagementException {
+        return getDownstreamCertWithCustomTruststore(hostname, port, validateChain, additionalCAs);
     }
 
     /**
      * Fetches with custom truststore.
      */
     public static List<X509Certificate> getDownstreamCertWithCustomTruststore(
-            String hostname, int port, X509Certificate... additionalCAs) throws NoSuchAlgorithmException, CertificateException, KeyStoreException, IOException, KeyManagementException {
+            String hostname, int port, boolean validateChain, X509Certificate... additionalCAs) throws NoSuchAlgorithmException, CertificateException, KeyStoreException, IOException, KeyManagementException {
 
         logger.info("Fetching certificate with custom truststore");
 
@@ -247,19 +255,24 @@ public class DownstreamCertTasdeeq {
 
         addTrustedRoots(additionalCAs);
 
-        try {
-            List<X509Certificate> certs = fetchCertificates(hostname, port);
-            logger.info("Certificates fetched successfully");
-            return certs;
-        } catch (Exception e) {
-            logger.error("Failed to fetch certificates!", e);
-            throw e;
-        } finally {
-            // Always restore — whether success or failure
-            SSLContext.setDefault(originalSSLContext);
-            HttpsURLConnection.setDefaultSSLSocketFactory(originalSocketFactory);
-            HttpsURLConnection.setDefaultHostnameVerifier(originalHostnameVerifier);
-            logger.info("SSL context restored to original");
+        if (validateChain) {
+            try {
+                List<X509Certificate> certs = fetchCertificates(hostname, port);
+                logger.info("Certificates fetched successfully");
+                return certs;
+            } catch (Exception e) {
+                logger.error("Failed to fetch certificates!", e);
+                throw e;
+            } finally {
+                // Always restore — whether success or failure
+                SSLContext.setDefault(originalSSLContext);
+                HttpsURLConnection.setDefaultSSLSocketFactory(originalSocketFactory);
+                HttpsURLConnection.setDefaultHostnameVerifier(originalHostnameVerifier);
+                logger.info("SSL context restored to original");
+            }
+        } else {
+            logger.info("Certificate validation disabled. Proceeding with unverified certificate fetch.");
+            return fetchCertificateWithoutChainValidation(hostname, port);
         }
     }
 

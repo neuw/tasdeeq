@@ -201,9 +201,9 @@ public class DownstreamCertificateHealthContributor implements HealthIndicator {
         List<DownstreamCertTasdeeqResult> results = new ArrayList<>();
         props.getDomains().forEach((k, v) -> {
             try {
-                if (v.validateChain() && StringUtils.hasText(v.getBase64EncodedChain())) {
+                if (StringUtils.hasText(v.getBase64EncodedChain())) {
                     DownstreamCertTasdeeqResult result = DownstreamCertTasdeeq.tasdeeq(
-                            v.getHost(), v.getPort(), v.getBase64EncodedChain());
+                            v.getHost(), v.getPort(), v.validateChain(), v.getBase64EncodedChain());
                     result.setHost(v.getHost())
                             .setPort(v.getPort())
                             .setTrustChain(result.getTrustChain())

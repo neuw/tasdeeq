@@ -109,7 +109,7 @@ public class DownstreamCertTasdeeqTests {
         System.out.println("Intermediate issuer: " + intermediateX509Cert.getIssuerX500Principal().getName());
         System.out.println("DN match: " + rootX509Cert.getSubjectX500Principal()
                 .equals(intermediateX509Cert.getIssuerX500Principal()));
-        List<X509Certificate> resolvedCerts = DownstreamCertTasdeeq.getDownstreamCertWithCustomTruststore("localhost", 8443, rootX509Cert, intermediateX509Cert);
+        List<X509Certificate> resolvedCerts = DownstreamCertTasdeeq.getDownstreamCertWithCustomTruststore("localhost", 8443, true, rootX509Cert, intermediateX509Cert);
         assertNotNull(resolvedCerts);
     }
 
